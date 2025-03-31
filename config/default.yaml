@@ -55,7 +55,9 @@ validation:
 
 # For model evaluation
 evaluation:
-  metrics: [ "accuracy", "precision", "recall", "f1", "confusion_matrix" ]
+  metrics: ["accuracy", "precision", "recall", "f1", "roc_auc", "confusion_matrix"]
+  threshold_metrics: true  # Include metrics at different classification thresholds
+  curve_plots: ["roc", "precision_recall"]  # Generate ROC and PR curves
   feature_importance: true
   save_results: true
   results_path: "results/"
