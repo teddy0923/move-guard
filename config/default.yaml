@@ -35,6 +35,36 @@ ml_model:
     n_estimators: 100
     max_depth: 10
     random_state: 42
+    class_weight:
+      1: 2.0  # "poor" class (higher weight)
+      2: 1.0  # "moderate" class
+      3: 0.5  # "good" class
+    #class_weight: "balanced"  # Adds weights inversely proportional to class frequencies. Use Null for equal weights
+    min_samples_split: 2
+    min_samples_leaf: 1
+    bootstrap: true
+    oob_score: true  # Out-of-bag score estimation (useful validation metric)
+
+# Consider adding cross-validation settings
+validation:
+  cross_validation:
+    method: "stratified_kfold"  # Ensures class balance in each fold
+    n_splits: 5
+    shuffle: true
+    random_state: 42
+
+# For model evaluation
+evaluation:
+  metrics: [ "accuracy", "precision", "recall", "f1", "confusion_matrix" ]
+  feature_importance: true
+  save_results: true
+  results_path: "results/"
+
+# Processing settings
+processing:
+  n_jobs: -1  # Use all available cores
+  verbose: 1
+
 
 # Logging settings
 logging:
