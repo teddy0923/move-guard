@@ -41,7 +41,7 @@ landmarks:
     - "mid_hip"  # Calculated from left and right hip
     - "mid_shoulder"  # Calculated from left and right shoulder
 
-# Squat-specific features
+# Squat-specific features for ML
 features:
   angles:
     femoral_angle:
