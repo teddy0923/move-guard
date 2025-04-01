@@ -45,19 +45,41 @@ ml_model:
     bootstrap: true
     oob_score: true  # Out-of-bag score estimation (useful validation metric)
 
-# Consider adding cross-validation settings
-validation:
+# Training and validation settings
+data_splitting:
+  validation_set:
+    enabled: true
+    test_size: 0.30       # 30% held out for validation
+    stratify: true        # Maintain class distribution
+    random_state: 42      # For reproducibility
+
   cross_validation:
-    method: "stratified_kfold"  # Ensures class balance in each fold
+    enabled: true         # Can be disabled if not needed
+    method: "stratified_kfold"
     n_splits: 5
     shuffle: true
     random_state: 42
 
-# For model evaluation
+# Model selection and hyperparameter tuning
+model_selection:
+  strategy: "cross_val"   # Options: "cross_val", "validation_set", "both"
+  scoring: "f1_weighted"  # Primary metric for selection
+  secondary_scoring: ["balanced_accuracy", "precision_weighted", "recall_weighted"]
+  scoring_metrics_available:
+    - "accuracy"
+    - "precision_weighted"
+    - "recall_weighted"
+    - "f1_weighted"
+    - "balanced_accuracy"
+    - "roc_auc_ovr_weighted"
+  refit: true             # Refit on all training data after selection
+
+# Evaluation settings
 evaluation:
+  final_validation: true  # Evaluate on held-out validation set
   metrics: ["accuracy", "precision", "recall", "f1", "roc_auc", "confusion_matrix"]
-  threshold_metrics: true  # Include metrics at different classification thresholds
-  curve_plots: ["roc", "precision_recall"]  # Generate ROC and PR curves
+  threshold_metrics: true
+  curve_plots: ["roc", "precision_recall"]
   feature_importance: true
   save_results: true
   results_path: "results/"

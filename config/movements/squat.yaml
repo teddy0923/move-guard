@@ -1,1 +1,221 @@
-# Default configuration for squat.
+# Squat movement specific configuration
+
+# Squat phases definition
+phases:
+  start_position:
+    description: "Standing upright with feet shoulder-width apart"
+    detection_method: "ankle_distance_and_height"
+  descent:
+    description: "Downward movement until lowest point"
+    detection_method: "hip_velocity"
+  bottom_position:
+    description: "Lowest point of the squat"
+    detection_method: "hip_height_minimum"
+  ascent:
+    description: "Upward movement back to standing"
+    detection_method: "hip_velocity"
+  end_position:
+    description: "Return to standing position"
+    detection_method: "stance_stability"
+
+# Squat-specific landmarks of interest
+landmarks:
+  primary:
+    - "left_hip"
+    - "right_hip"
+    - "left_knee"
+    - "right_knee"
+    - "left_ankle"
+    - "right_ankle"
+    - "left_foot_index"
+    - "right_foot_index"
+    - "left_heel"
+    - "right_heel"
+    - "left_shoulder"
+    - "right_shoulder"
+    - "left_wrist"
+    - "right_wrist"
+  secondary:
+    - "nose"
+    - "neck"  # If available
+    - "mid_hip"  # Calculated from left and right hip
+    - "mid_shoulder"  # Calculated from left and right shoulder
+
+# Squat-specific features
+features:
+  angles:
+    femoral_angle:
+      description: "Angle between femur segment and horizontal at squat depth"
+      calculation: "angle_to_horizontal"
+      points: ["knee", "hip"]
+      view: "sagittal"
+      reference: "Squat depth: at or below horizontal desired"
+      thresholds:  # Expert reference only, not used by ML
+        poor: [0, 30]    # Insufficient depth
+        moderate: [30, 80]
+        good: [80, 100]  # At or below horizontal
+
+    ankle_angle:
+      description: "Ankle dorsiflexion angle"
+      calculation: "angle_between_vectors"
+      points: ["heel", "ankle", "knee"]
+      view: "sagittal"
+      reference: "Dorsiflexion mobility"
+      thresholds:  # Expert reference only, not used by ML
+        poor: [0, 15]
+        moderate: [15, 25]
+        good: [25, 40]
+
+    hip_flexion:
+      description: "Hip mobility - angle between shoulder, hip and knee"
+      calculation: "angle_between_vectors"
+      points: ["shoulder", "hip", "knee"]
+      view: "sagittal"
+      reference: "Hip mobility"
+      thresholds:  # Expert reference only, not used by ML
+        poor: [0, 70]
+        moderate: [70, 100]
+        good: [100, 130]
+
+    knee_flexion:
+      description: "Knee mobility - angle between hip, knee and ankle"
+      calculation: "angle_between_vectors"
+      points: ["hip", "knee", "ankle"]
+      view: "sagittal"
+      reference: "Knee mobility"
+      thresholds:  # Expert reference only, not used by ML
+        poor: [0, 60]
+        moderate: [60, 90]
+        good: [90, 120]
+
+    trunk_tibia_angle:
+      description: "Angle between trunk and tibia - indicates forward lean"
+      calculation: "angle_between_vectors"
+      points: ["shoulder", "hip", "ankle"]
+      view: "sagittal"
+      reference: "Forward lean: trunk should be parallel to tibia or closer to vertical"
+      thresholds:  # Expert reference only, not used by ML
+        good: [70, 90]     # Trunk vertical or parallel to tibia
+        moderate: [50, 70]
+        poor: [0, 50]      # Excessive forward lean
+
+    hip_alignment:
+      description: "Angle between hip line and ground perpendicular"
+      calculation: "angle_to_vertical"
+      points: ["left_hip", "right_hip"]
+      view: "frontal"
+      reference: "Symmetry and stability: hip joints should be aligned through movement"
+      thresholds:  # Expert reference only, not used by ML
+        good: [85, 95]     # Nearly perpendicular
+        moderate: [75, 85, 95, 105]
+        poor: [0, 75, 105, 180]
+
+    neck_line:
+      description: "Angle between neck and vertical - indicates neck positioning"
+      calculation: "TBD: Limited by landmarks"
+      points: ["nose", "neck", "vertical_reference"]
+      view: "sagittal"
+      reference: "Strength and mobility: The neck should be close to the ground perpendicular line"
+      thresholds:  # Expert reference only, not used by ML
+        good: [0, 10]     # Nearly vertical
+        moderate: [10, 20]
+        poor: [20, 90]    # Far from vertical
+      implementation_status: "placeholder_tbd"
+
+  distances:
+    wrist_to_foot:
+      description: "Horizontal distance between wrist and big toe - indicates forward lean"
+      calculation: "horizontal_distance"
+      points: ["wrist", "foot_index"]
+      view: "sagittal"
+      reference: "Forward lean: distance should be zero or positive"
+      thresholds:  # Expert reference only, not used by ML
+        good: [-30, 0]     # Wrist behind or aligned with foot
+        moderate: [-60, -30]
+        poor: [-100, -60]  # Wrist far behind foot
+
+    knee_to_foot:
+      description: "Horizontal distance between knee and big toe"
+      calculation: "horizontal_distance"
+      points: ["knee", "foot_index"]
+      view: "sagittal"
+      reference: "Strength and mobility: knees should not lie past the feet at apex"
+      thresholds:  # Expert reference only, not used by ML
+        good: [-10, 10]    # Knee aligned with foot
+        moderate: [10, 30, -30, -10]
+        poor: [30, 60, -60, -30]  # Knee far past or behind toes
+
+    hip_height:
+      description: "Vertical distance between hips and ground"
+      calculation: "vertical_distance"
+      points: ["mid_hip", "ground"]
+      reference: "Squat depth"
+      view: "frontal"
+      thresholds:  # Expert reference only, not used by ML
+        poor: [0.5, 0.7]    # Insufficient squat depth
+        moderate: [0.3, 0.5]
+        good: [0.2, 0.3]    # Deep squat
+
+    heel_raise:
+      description: "Vertical distance between heel and ground - should be zero"
+      calculation: "vertical_distance"
+      points: ["heel", "ground"]
+      view: "sagittal"
+      reference: "Stability: heel should remain on ground"
+      thresholds:  # Expert reference only, not used by ML
+        good: [0, 1]       # Heel on ground
+        moderate: [1, 3]
+        poor: [3, 10]      # Heel raised
+
+    big_toe_raise:
+      description: "Vertical distance between big toe and ground - should be zero"
+      calculation: "vertical_distance"
+      points: ["foot_index", "ground"]
+      view: "sagittal"
+      reference: "Stability: toe should remain on ground"
+      thresholds:  # Expert reference only, not used by ML
+        good: [0, 1]       # Toe on ground
+        moderate: [1, 3]
+        poor: [3, 10]      # Toe raised
+
+  ratios:
+    knee_ankle_separation:
+      description: "Ratio of knee distance to ankle distance - valgus/varus indicator"
+      calculation: "distance_ratio"
+      points: [["left_knee", "right_knee"], ["left_ankle", "right_ankle"]]
+      view: "frontal"
+      reference: "Knee valgus/varus: if < 1, valgus; if > 1, varus"
+      thresholds:  # Expert reference only, not used by ML
+        good: [0.95, 1.05]   # Knees and ankles aligned
+        moderate: [0.8, 0.95, 1.05, 1.2]
+        poor: [0, 0.8, 1.2, 2]  # Significant valgus or varus
+
+  advanced:
+    back_line:
+      description: "Assessment of back curvature during squat"
+      calculation: "TBD: There is no landmark between Hip and Shoulder"
+      points: ["hip", "intermediate_back_points", "shoulder"]
+      view: "sagittal"
+      reference: "Overall movement: Back should not arch and remain in a straight line"
+      thresholds:  # Expert reference only, not used by ML
+        good: [0, 5]        # Minimal deviation from straight line
+        moderate: [5, 15]
+        poor: [15, 45]      # Significant arching
+      implementation_status: "placeholder_tbd"
+
+# Feature relative importance for interpretability (not used by ML directly)
+feature_weights:
+  femoral_angle: 1.8
+  ankle_angle: 1.2
+  hip_flexion: 1.5
+  knee_flexion: 1.5
+  trunk_tibia_angle: 1.6
+  hip_alignment: 1.4
+  wrist_to_foot: 1.3
+  knee_to_foot: 1.7
+  hip_height: 1.8
+  heel_raise: 1.0
+  big_toe_raise: 0.8
+  knee_ankle_separation: 2.0
+  neck_line: 0.7
+  back_line: 1.1
