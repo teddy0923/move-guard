@@ -1,0 +1,355 @@
+# core/file_utils.py
+import os
+import shutil
+import json
+import pickle
+import logging
+import numpy as np
+import csv
+from pathlib import Path
+
+
+def ensure_directory_exists(directory_path):
+    """
+    Create directory if it doesn't exist
+
+    Args:
+        directory_path: Path to the directory
+
+    Returns:
+        bool: True if directory exists or was created successfully
+    """
+    try:
+        os.makedirs(directory_path, exist_ok=True)
+        return True
+    except Exception as e:
+        logging.error(f"Error creating directory {directory_path}: {str(e)}")
+        return False
+
+
+def save_landmarks(landmarks, output_path, filename):
+    """
+    Save extracted landmarks to a numpy file
+
+    Args:
+        landmarks: Numpy array of landmarks
+        output_path: Directory to save the file
+        filename: Name of the file without extension
+
+    Returns:
+        str: Path to the saved file or None if error
+    """
+    ensure_directory_exists(output_path)
+    try:
+        file_path = os.path.join(output_path, f"{filename}.npy")
+        np.save(file_path, landmarks)
+        logging.info(f"Landmarks saved to {file_path}")
+        return file_path
+    except Exception as e:
+        logging.error(f"Error saving landmarks: {str(e)}")
+        return None
+
+
+def load_landmarks(file_path):
+    """
+    Load landmarks from a numpy file
+
+    Args:
+        file_path: Path to the landmark file
+
+    Returns:
+        Numpy array of landmarks or None if error
+    """
+    try:
+        if not os.path.exists(file_path):
+            logging.error(f"Landmark file not found: {file_path}")
+            return None
+
+        landmarks = np.load(file_path, allow_pickle=True)
+        return landmarks
+    except Exception as e:
+        logging.error(f"Error loading landmarks from {file_path}: {str(e)}")
+        return None
+
+
+def save_features(features, output_path, filename):
+    """
+    Save extracted features to a CSV file
+
+    Args:
+        features: DataFrame of features
+        output_path: Directory to save the file
+        filename: Name of the file without extension
+
+    Returns:
+        str: Path to the saved file or None if error
+    """
+    ensure_directory_exists(output_path)
+    try:
+        file_path = os.path.join(output_path, f"{filename}.csv")
+        features.to_csv(file_path, index=False)
+        logging.info(f"Features saved to {file_path}")
+        return file_path
+    except Exception as e:
+        logging.error(f"Error saving features: {str(e)}")
+        return None
+
+
+def load_features(file_path):
+    """
+    Load features from a CSV file
+
+    Args:
+        file_path: Path to the feature file
+
+    Returns:
+        DataFrame of features or None if error
+    """
+    try:
+        import pandas as pd
+        if not os.path.exists(file_path):
+            logging.error(f"Feature file not found: {file_path}")
+            return None
+
+        features = pd.read_csv(file_path)
+        return features
+    except Exception as e:
+        logging.error(f"Error loading features from {file_path}: {str(e)}")
+        return None
+
+
+def save_model(model, output_path, filename):
+    """
+    Save trained model to a pickle file
+
+    Args:
+        model: Trained ML model
+        output_path: Directory to save the file
+        filename: Name of the file without extension
+
+    Returns:
+        str: Path to the saved file or None if error
+    """
+    ensure_directory_exists(output_path)
+    try:
+        file_path = os.path.join(output_path, f"{filename}.pkl")
+        with open(file_path, 'wb') as f:
+            pickle.dump(model, f)
+        logging.info(f"Model saved to {file_path}")
+        return file_path
+    except Exception as e:
+        logging.error(f"Error saving model: {str(e)}")
+        return None
+
+
+def load_model(file_path):
+    """
+    Load model from a pickle file
+
+    Args:
+        file_path: Path to the model file
+
+    Returns:
+        Trained ML model or None if error
+    """
+    try:
+        if not os.path.exists(file_path):
+            logging.error(f"Model file not found: {file_path}")
+            return None
+
+        with open(file_path, 'rb') as f:
+            model = pickle.load(f)
+        return model
+    except Exception as e:
+        logging.error(f"Error loading model from {file_path}: {str(e)}")
+        return None
+
+
+def save_metadata(metadata, output_path, filename):
+    """
+    Save metadata to a JSON file
+
+    Args:
+        metadata: Dictionary of metadata
+        output_path: Directory to save the file
+        filename: Name of the file without extension
+
+    Returns:
+        str: Path to the saved file or None if error
+    """
+    ensure_directory_exists(output_path)
+    try:
+        file_path = os.path.join(output_path, f"{filename}.json")
+        with open(file_path, 'w') as f:
+            json.dump(metadata, f, indent=4)
+        logging.info(f"Metadata saved to {file_path}")
+        return file_path
+    except Exception as e:
+        logging.error(f"Error saving metadata: {str(e)}")
+        return None
+
+
+def load_metadata(file_path):
+    """
+    Load metadata from a JSON file
+
+    Args:
+        file_path: Path to the metadata file
+
+    Returns:
+        Dictionary of metadata or None if error
+    """
+    try:
+        if not os.path.exists(file_path):
+            logging.error(f"Metadata file not found: {file_path}")
+            return None
+
+        with open(file_path, 'r') as f:
+            metadata = json.load(f)
+        return metadata
+    except Exception as e:
+        logging.error(f"Error loading metadata from {file_path}: {str(e)}")
+        return None
+
+
+def list_files(directory, extension=None):
+    """
+    List all files in a directory with optional extension filter
+
+    Args:
+        directory: Directory to list files from
+        extension: Optional file extension to filter by (e.g., '.mp4')
+
+    Returns:
+        list: List of file paths
+    """
+    try:
+        if not os.path.exists(directory):
+            logging.warning(f"Directory not found: {directory}")
+            return []
+
+        if extension:
+            return [os.path.join(directory, f) for f in os.listdir(directory)
+                    if os.path.isfile(os.path.join(directory, f)) and f.endswith(extension)]
+        else:
+            return [os.path.join(directory, f) for f in os.listdir(directory)
+                    if os.path.isfile(os.path.join(directory, f))]
+    except Exception as e:
+        logging.error(f"Error listing files in {directory}: {str(e)}")
+        return []
+
+
+def get_video_metadata(video_path):
+    """
+    Extract metadata from a video file
+
+    Args:
+        video_path: Path to the video file
+
+    Returns:
+        dict: Dictionary with video metadata or None if error
+    """
+    try:
+        import cv2
+        if not os.path.exists(video_path):
+            logging.error(f"Video file not found: {video_path}")
+            return None
+
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            logging.error(f"Error opening video file: {video_path}")
+            return None
+
+        # Extract video properties
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration = frame_count / fps if fps > 0 else 0
+
+        cap.release()
+
+        return {
+            'file_path': video_path,
+            'file_name': os.path.basename(video_path),
+            'width': width,
+            'height': height,
+            'fps': fps,
+            'frame_count': frame_count,
+            'duration_seconds': duration,
+            'file_size_bytes': os.path.getsize(video_path)
+        }
+    except Exception as e:
+        logging.error(f"Error extracting video metadata from {video_path}: {str(e)}")
+        return None
+
+
+def path_from_config(config, *keys):
+    """
+    Build file path from configuration
+
+    Args:
+        config: Configuration dictionary
+        *keys: Sequence of keys to navigate the config dictionary
+
+    Returns:
+        Path: Constructed path object or None if keys are invalid
+    """
+    try:
+        value = config
+        for key in keys:
+            value = value[key]
+
+        return Path(value)
+    except (KeyError, TypeError) as e:
+        logging.error(f"Error constructing path from config keys {keys}: {str(e)}")
+        return None
+
+
+def load_video_metadata_file(metadata_path):
+    """
+    Load video metadata from a CSV file containing start/end frames
+
+    Args:
+        metadata_path: Path to the metadata CSV file
+
+    Returns:
+        dict: Dictionary mapping video IDs to their metadata (start/end frames)
+              or None if metadata file doesn't exist or can't be loaded
+    """
+    if not metadata_path or not os.path.exists(metadata_path):
+        return None
+
+    try:
+        import pandas as pd
+        metadata_df = pd.read_csv(metadata_path)
+
+        # Create metadata dictionary
+        metadata_dict = {}
+        for _, row in metadata_df.iterrows():
+            video_id = row.get('video_id') or os.path.basename(row.get('video_path', ''))
+
+            # Skip entries without valid video identification
+            if not video_id:
+                continue
+
+            # Only include start_frame and end_frame if both are present
+            frame_data = {}
+            if 'start_frame' in row and 'end_frame' in row:
+                # Only add if both values are valid numbers
+                if pd.notna(row['start_frame']) and pd.notna(row['end_frame']):
+                    frame_data['start_frame'] = int(row['start_frame'])
+                    frame_data['end_frame'] = int(row['end_frame'])
+
+            # Add any other metadata columns
+            metadata_dict[video_id] = {
+                **frame_data,
+                **{col: row[col] for col in metadata_df.columns
+                   if col not in ['video_id', 'start_frame', 'end_frame']
+                   and pd.notna(row[col])}
+            }
+
+        return metadata_dict
+    except Exception as e:
+        logging.error(f"Error loading video metadata from {metadata_path}: {str(e)}")
+        return None

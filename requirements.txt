@@ -1,0 +1,32 @@
+# Core dependencies
+numpy>=1.23.0
+pandas>=1.5.0
+matplotlib>=3.6.0
+scikit-learn>=1.1.0
+PyYAML>=6.0
+
+# Pose estimation
+mediapipe>=0.9.0
+opencv-python>=4.6.0
+opencv-contrib-python>=4.6.0
+
+# Data processing
+scipy>=1.9.0
+tqdm>=4.64.0
+
+# Visualization
+seaborn>=0.12.0
+plotly>=5.10.0
+
+# Machine learning
+joblib>=1.2.0
+xgboost>=1.6.0  # Optional for gradient boosting models
+
+# Development tools
+pytest>=7.0.0
+black>=22.8.0
+flake8>=5.0.0
+notebook>=6.4.0
+
+# Video processing
+av>=9.0.0  # for PyAV (alternative video processing)
