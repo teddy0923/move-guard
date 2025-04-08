@@ -1,4 +1,4 @@
-# scripts/train_model.py
+# scripts/train_traditional.py
 # !/usr/bin/env python3
 """
 Script to train machine learning model on extracted features for movement quality classification.
@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.config_manager import ConfigLoader
 from core.file_utils import list_files, save_model, save_metadata
-from ml_models.random_forest_model import RandomForestModel
+from core.pipeline import Pipeline
 
 
 def parse_args():
@@ -59,6 +59,9 @@ def main():
     if not args.output:
         args.output = os.path.join(config.get('evaluation', {}).get('results_path', 'results/'), args.movement)
 
+    # Initialize pipeline
+    pipeline = Pipeline(config)
+
     # Load features
     if os.path.isfile(args.features) and args.features.endswith('.csv'):
         # Load single features file
@@ -95,8 +98,6 @@ def main():
         sys.exit(1)
 
     # Merge features with labels
-    # This assumes there is a common column to join on (e.g., 'video_id' or 'subject_id')
-    # Adjust as needed based on your data format
     try:
         # First, try to find common columns
         common_cols = set(features_df.columns).intersection(set(labels_df.columns))
@@ -125,19 +126,18 @@ def main():
         logging.error(f"Error merging features and labels: {str(e)}")
         sys.exit(1)
 
-    # Initialize ML model
-    ml_model_config = config.get('ml_model', {})
-    ml_model = RandomForestModel(ml_model_config)
-
-    # Train model
+    # Train model using pipeline
     logging.info("Training model...")
-    training_metrics = ml_model.train(features, labels)
+    training_result = pipeline.train_model(features, labels)
 
-    if training_metrics:
+    if training_result['success']:
+        # Get model from pipeline
+        ml_model = pipeline.get_component('ml_model')
+
         # Save model
         model_path = save_model(ml_model.model, args.output, f"{args.movement}_model")
 
-        # Save feature importance
+        # Get feature importance
         importance = ml_model.feature_importance()
         if importance:
             importance_df = pd.DataFrame({
@@ -152,7 +152,7 @@ def main():
             'movement_type': args.movement,
             'features_shape': features.shape,
             'class_distribution': labels.value_counts().to_dict(),
-            'training_metrics': training_metrics,
+            'training_metrics': training_result.get('training_metrics', {}),
             'feature_importance': importance if importance else None
         }
 
@@ -160,7 +160,7 @@ def main():
 
         logging.info(f"Model training completed successfully. Model saved to {model_path}")
     else:
-        logging.error("Model training failed")
+        logging.error(f"Model training failed: {training_result.get('error')}")
         sys.exit(1)
 
 

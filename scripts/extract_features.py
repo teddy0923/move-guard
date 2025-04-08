@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.config_manager import ConfigLoader
 from core.file_utils import load_landmarks, save_features, list_files
-from feature_extractors.squat_feature_extractor import SquatFeatureExtractor
+from core.pipeline import Pipeline
 
 
 def parse_args():
@@ -60,11 +60,13 @@ def main():
     if not args.output:
         args.output = base_config['paths']['data']['features']
 
-    # Initialize appropriate feature extractor based on movement type
-    if args.movement.lower() == 'squat':
-        feature_extractor = SquatFeatureExtractor(config, args.movement)
-    else:
-        logging.error(f"Unsupported movement type: {args.movement}")
+    # Initialize pipeline
+    pipeline = Pipeline(config)
+
+    # Get feature extractor from pipeline
+    feature_extractor = pipeline.get_component('feature_extractor')
+    if not feature_extractor:
+        logging.error(f"Failed to initialize feature extractor for movement type: {args.movement}")
         sys.exit(1)
 
     # Process single landmark file or directory of landmark files

@@ -1,4 +1,4 @@
-# scripts/generate_visualization.py
+# scripts/generate_visualizations.py
 # !/usr/bin/env python3
 """
 Script to generate visualizations of movement analysis with optional angle overlays.
@@ -16,7 +16,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.config_manager import ConfigLoader
-from core.file_utils import load_landmarks, load_metadata, ensure_directory_exists
+from core.file_utils import load_landmarks, ensure_directory_exists
+from core.pipeline import Pipeline
 
 
 def parse_args():
@@ -122,6 +123,9 @@ def main():
     else:
         config = base_config
 
+    # Initialize pipeline
+    pipeline = Pipeline(config)
+
     # Set default output directory if not specified
     if not args.output:
         args.output = base_config['paths']['data']['processed_videos']['annotated']
@@ -165,7 +169,6 @@ def main():
                 end_frame = metadata_entry['end_frame']
                 logging.info(f"Using frames {start_frame} to {end_frame} from metadata")
 
-    # Add this inside the main function after loading landmarks but before processing
     # Validate landmark-video correspondence
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     total_landmarks = len(landmarks_data)
@@ -182,12 +185,16 @@ def main():
         landmarks_id = Path(args.landmarks).stem
         if landmarks_id != video_id and not landmarks_id.startswith(video_id):
             logging.warning(
-                f"Warning: Possible mismatch between video ID ({video_id}) and landmarks ID ({landmarks_id})")
+                f"Warning: Possible mismatch between video ID ({video_id}) and landmarks ID ({landmarks_id})"
+            )
 
     # Setup video writer
     output_path = os.path.join(args.output, f"{video_id}_visualized.mp4")
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # or 'XVID'
     out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+
+    # Get pose estimator from pipeline for connection information
+    pose_estimator = pipeline.get_component('pose_estimator')
 
     # Define body connections for visualization (customize based on your pose estimator)
     # This is a simplification and should be adjusted for your specific landmark format

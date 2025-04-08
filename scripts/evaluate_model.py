@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.config_manager import ConfigLoader
 from core.file_utils import load_model, save_metadata
-from ml_models.random_forest_model import RandomForestModel
+from core.pipeline import Pipeline
 
 
 def parse_args():
@@ -54,14 +54,17 @@ def main():
     if not args.output:
         args.output = config.get('evaluation', {}).get('results_path', 'results/')
 
+    # Initialize pipeline
+    pipeline = Pipeline(config)
+
     # Load model
     model = load_model(args.model)
     if model is None:
         logging.error(f"Failed to load model from {args.model}")
         sys.exit(1)
 
-    # Create model wrapper
-    ml_model = RandomForestModel(config.get('ml_model', {}))
+    # Set the model in the pipeline
+    ml_model = pipeline.get_component('ml_model')
     ml_model.model = model
 
     # Load test features
@@ -109,20 +112,11 @@ def main():
     # Evaluate model
     logging.info("Evaluating model...")
 
-    # Make predictions
-    try:
-        predictions = ml_model.predict(test_features)
-    except Exception as e:
-        logging.error(f"Error making predictions: {str(e)}")
-        sys.exit(1)
+    # Use pipeline to evaluate model
+    evaluation_result = pipeline.evaluate_model(test_features, test_labels)
 
-    # Calculate evaluation metrics
-    try:
-        evaluation_metrics = ml_model.evaluate(test_features, test_labels)
-
-        if not evaluation_metrics:
-            logging.error("Failed to calculate evaluation metrics")
-            sys.exit(1)
+    if evaluation_result['success']:
+        evaluation_metrics = evaluation_result['evaluation_metrics']
 
         # Save evaluation results
         results_path = os.path.join(args.output, 'evaluation_results.json')
@@ -135,8 +129,8 @@ def main():
         for metric, value in evaluation_metrics.items():
             if metric != 'confusion_matrix' and not isinstance(value, dict):
                 logging.info(f"{metric}: {value:.4f}")
-    except Exception as e:
-        logging.error(f"Error evaluating model: {str(e)}")
+    else:
+        logging.error(f"Model evaluation failed: {evaluation_result.get('error')}")
         sys.exit(1)
 
 

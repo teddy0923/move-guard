@@ -14,7 +14,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.config_manager import ConfigLoader
-from pose_estimators.mediapipe_estimator import MediaPipePoseEstimator
+from core.file_utils import load_video_metadata_file
+from core.pipeline import Pipeline
 
 
 def parse_args():
@@ -54,15 +55,14 @@ def main():
     # Load metadata if provided
     video_metadata = None
     if args.metadata:
-        from core.file_utils import load_video_metadata_file
         video_metadata = load_video_metadata_file(args.metadata)
         if video_metadata:
             logging.info(f"Loaded metadata for {len(video_metadata)} videos")
         else:
             logging.warning("No valid metadata loaded, will process entire videos")
 
-    # Initialize pose estimator
-    pose_estimator = MediaPipePoseEstimator(config['pose_estimation'])
+    # Initialize pipeline
+    pipeline = Pipeline(config)
 
     # Process single video or directory of videos
     if os.path.isfile(args.video):
@@ -77,15 +77,16 @@ def main():
             video_segment = video_metadata[video_id]
             if 'start_frame' in video_segment and 'end_frame' in video_segment:
                 logging.info(
-                    f"Processing frames {video_segment['start_frame']} to {video_segment['end_frame']} for {video_id}")
+                    f"Processing frames {video_segment['start_frame']} to {video_segment['end_frame']} for {video_id}"
+                )
 
         logging.info(f"Processing video: {video_path}")
-        landmarks = pose_estimator.process_video(video_path, output_path, video_segment)
+        result = pipeline.process_video(video_path, output_path, video_segment)
 
-        if landmarks is not None:
+        if result['success']:
             logging.info(f"Successfully extracted landmarks from {video_path}")
         else:
-            logging.error(f"Failed to extract landmarks from {video_path}")
+            logging.error(f"Failed to extract landmarks from {video_path}: {result.get('error')}")
 
     elif os.path.isdir(args.video):
         # Process all videos in directory
@@ -105,21 +106,23 @@ def main():
                 video_segment = video_metadata[video_id]
                 if 'start_frame' in video_segment and 'end_frame' in video_segment:
                     logging.info(
-                        f"Processing frames {video_segment['start_frame']} to {video_segment['end_frame']} for {video_id}")
+                        f"Processing frames {video_segment['start_frame']} to {video_segment['end_frame']} for {video_id}"
+                    )
 
             logging.info(f"Processing video: {video_path}")
-            landmarks = pose_estimator.process_video(video_path, output_path, video_segment)
+            result = pipeline.process_video(video_path, output_path, video_segment)
 
-            if landmarks is not None:
+            if result['success']:
                 success_count += 1
                 logging.info(f"Successfully extracted landmarks from {video_path}")
             else:
-                logging.error(f"Failed to extract landmarks from {video_path}")
+                logging.error(f"Failed to extract landmarks from {video_path}: {result.get('error')}")
 
         logging.info(f"Processed {success_count}/{len(video_files)} videos successfully")
     else:
         logging.error(f"Video path does not exist: {args.video}")
         sys.exit(1)
-        
+
+
 if __name__ == "__main__":
     main()
