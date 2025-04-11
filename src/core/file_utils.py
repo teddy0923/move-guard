@@ -306,12 +306,13 @@ def path_from_config(config, *keys):
         return None
 
 
-def load_video_metadata_file(metadata_path):
+def load_video_metadata_file(metadata_path, config=None):
     """
     Load video metadata from a CSV file containing start/end frames
 
     Args:
         metadata_path: Path to the metadata CSV file
+        config: Optional configuration dictionary with metadata field mappings
 
     Returns:
         dict: Dictionary mapping video IDs to their metadata (start/end frames)
@@ -324,30 +325,73 @@ def load_video_metadata_file(metadata_path):
         import pandas as pd
         metadata_df = pd.read_csv(metadata_path)
 
+        # Default field mappings
+        default_mappings = {
+            'id_field': 'video_id',
+            'start_frame_fields': ['start_frame'],
+            'end_frame_fields': ['end_frame']
+        }
+
+        # Get field mappings from config if provided
+        field_mappings = default_mappings
+        if config and 'metadata' in config and 'video_segments' in config['metadata']:
+            field_mappings = config['metadata']['video_segments']
+
+        # Extract the ID field name (filename or video_id)
+        id_field = field_mappings.get('id_field', 'video_id')
+
+        # Handle case where the ID field doesn't exist
+        if id_field not in metadata_df.columns:
+            logging.warning(
+                f"ID field '{id_field}' not found in metadata. Available columns: {metadata_df.columns.tolist()}")
+            # Try to use the first column as ID if it exists
+            if len(metadata_df.columns) > 0:
+                id_field = metadata_df.columns[0]
+                logging.warning(f"Using '{id_field}' as ID field instead")
+            else:
+                return None
+
+        # Get start/end frame field names
+        start_frame_fields = field_mappings.get('start_frame_fields', ['start_frame'])
+        end_frame_fields = field_mappings.get('end_frame_fields', ['end_frame'])
+
         # Create metadata dictionary
         metadata_dict = {}
         for _, row in metadata_df.iterrows():
-            video_id = row.get('video_id') or os.path.basename(row.get('video_path', ''))
+            video_id = row.get(id_field) or os.path.basename(row.get('video_path', ''))
 
             # Skip entries without valid video identification
             if not video_id:
                 continue
 
-            # Only include start_frame and end_frame if both are present
-            frame_data = {}
-            if 'start_frame' in row and 'end_frame' in row:
-                # Only add if both values are valid numbers
-                if pd.notna(row['start_frame']) and pd.notna(row['end_frame']):
-                    frame_data['start_frame'] = int(row['start_frame'])
-                    frame_data['end_frame'] = int(row['end_frame'])
+            # Initialize metadata for this video
+            video_metadata = {}
 
             # Add any other metadata columns
-            metadata_dict[video_id] = {
-                **frame_data,
-                **{col: row[col] for col in metadata_df.columns
-                   if col not in ['video_id', 'start_frame', 'end_frame']
-                   and pd.notna(row[col])}
-            }
+            for col in metadata_df.columns:
+                if col != id_field and pd.notna(
+                        row[col]) and col not in start_frame_fields and col not in end_frame_fields:
+                    video_metadata[col] = row[col]
+
+            # Process each set of start/end frames (for multiple repetitions)
+            repetitions = []
+            for start_field, end_field in zip(start_frame_fields, end_frame_fields):
+                if start_field in row and end_field in row:
+                    if pd.notna(row[start_field]) and pd.notna(row[end_field]):
+                        repetitions.append({
+                            'start_frame': int(row[start_field]),
+                            'end_frame': int(row[end_field])
+                        })
+
+            # If there are repetitions, add them to metadata
+            if repetitions:
+                video_metadata['repetitions'] = repetitions
+                # Use first repetition as default start/end frames
+                video_metadata['start_frame'] = repetitions[0]['start_frame']
+                video_metadata['end_frame'] = repetitions[0]['end_frame']
+
+            # Add this video's metadata to the dictionary
+            metadata_dict[video_id] = video_metadata
 
         return metadata_dict
     except Exception as e:

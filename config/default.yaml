@@ -9,7 +9,23 @@ paths:
     processed_videos:
       basic: "data/processed_videos/basic/"
       annotated: "data/processed_videos/annotated/"
-    metadata: "data/metadata/"
+    metadata:
+      default: "data/metadata/"
+      test_data: "tests_data.csv"  # Path to test data file relative to project root
+      video_segments:
+        id_field: "Filename"         # Maps to "video_id" internally
+        movement_field: "Movement"   # Additional metadata
+        view_field: "View_Angle"     # Additional metadata
+        start_frame_fields: # Multiple possible start frames
+          - "rep1_start"
+          - "rep2_start"
+          - "rep3_start"
+          - "rep4_start"
+        end_frame_fields: # Multiple possible end frames
+          - "rep1_end"
+          - "rep2_end"
+          - "rep3_end"
+          - "rep4_end"
 
 # Pose estimation settings
 pose_estimation:
