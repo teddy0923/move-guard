@@ -63,7 +63,7 @@ class Pipeline:
         ml_algorithm = self.config.get('ml_model', {}).get('algorithm', 'random_forest')
         try:
             if ml_algorithm == 'random_forest':
-                from ml_models.random_forest_model import RandomForestModel
+                from models.traditional.random_forest_model import RandomForestModel
                 self.components['ml_model'] = RandomForestModel(
                     self.config.get('ml_model', {})
                 )
