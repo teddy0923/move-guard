@@ -13,12 +13,12 @@ from pathlib import Path
 # Add project root to path to allow imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from core.config_manager import ConfigLoader
-from core.file_utils import load_landmarks, save_features, list_files
-from core.pipeline import Pipeline
+from src.core.config_manager import ConfigLoader
+from src.core.file_utils import load_landmarks, save_features, list_files
+from src.core.pipeline import Pipeline
 
 
-def parse_args():
+def parse_args(args=None):
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(description='Extract features from pose landmarks')
 
@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument('--movement', type=str, default='squat',
                         help='Movement type for feature extraction (e.g., squat, ybt)')
 
-    return parser.parse_args()
+    return parser.parse_args(args)
 
 
 def main():

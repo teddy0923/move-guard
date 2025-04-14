@@ -8,7 +8,7 @@ import pytest
 import argparse
 
 
-def parse_args():
+def parse_args(args=None):
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(description='Run Movement Analysis tests')
 
@@ -20,8 +20,10 @@ def parse_args():
                         help='Increase verbosity (can be repeated)')
     parser.add_argument('--test-file', type=str,
                         help='Run a specific test file')
+    parser.add_argument('--show-print', action='store_true',
+                        help='Show print statements from tests')
 
-    return parser.parse_args()
+    return parser.parse_args(args)
 
 
 def main():
@@ -30,6 +32,10 @@ def main():
 
     # Build pytest arguments
     pytest_args = []
+
+    # Pass -s if show-print is enabled
+    if args.show_print:
+        pytest_args.append('-s')
 
     # Set verbosity
     if args.verbose > 0:

@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 import logging
-from feature_extractors.base_extractor import BaseFeatureExtractor
+from src.feature_extractors.base_extractor import BaseFeatureExtractor
 
 
 class SquatFeatureExtractor(BaseFeatureExtractor):

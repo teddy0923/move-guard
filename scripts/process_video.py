@@ -13,12 +13,12 @@ from pathlib import Path
 # Add project root to path to allow imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from core.config_manager import ConfigLoader
-from core.file_utils import load_video_metadata_file
-from core.pipeline import Pipeline
+from src.core.config_manager import ConfigLoader
+from src.core.file_utils import load_video_metadata_file
+from src.core.pipeline import Pipeline
 
 
-def parse_args():
+def parse_args(args=None):
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(description='Process video and extract pose landmarks')
 
@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument('--metadata', type=str,
                         help='Path to metadata CSV file with optional start/end frames')
 
-    return parser.parse_args()
+    return parser.parse_args(args)
 
 
 def main():

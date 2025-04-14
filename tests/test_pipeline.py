@@ -6,14 +6,17 @@ from pathlib import Path
 import tempfile
 import numpy as np
 import pandas as pd
+import src.pose_estimators.mediapipe_estimator
 
 # Add the project root to the path
 test_dir = Path(__file__).resolve().parent
 project_root = test_dir.parent
 sys.path.insert(0, str(project_root))
 
-from core.config_manager import ConfigLoader
-from core.pipeline import Pipeline
+from src.core.config_manager import ConfigLoader
+from src.core.pipeline import Pipeline
+
+
 
 
 class TestPipeline:
@@ -44,9 +47,9 @@ class TestPipeline:
         assert 'ml_model' in pipeline.components
 
         # Verify component types
-        from pose_estimators.mediapipe_estimator import MediaPipePoseEstimator
-        from feature_extractors.squat_feature_extractor import SquatFeatureExtractor
-        from models.traditional.random_forest_model import RandomForestModel
+        from src.pose_estimators.mediapipe_estimator import MediaPipePoseEstimator
+        from src.feature_extractors.squat_feature_extractor import SquatFeatureExtractor
+        from src.models.traditional.random_forest_model import RandomForestModel
 
         assert isinstance(pipeline.components['pose_estimator'], MediaPipePoseEstimator)
         assert isinstance(pipeline.components['feature_extractor'], SquatFeatureExtractor)
@@ -87,8 +90,8 @@ class TestPipeline:
             return np.random.random((10, 33, 3))
 
         # Apply mock
-        import pose_estimators.mediapipe_estimator
-        monkeypatch.setattr(pose_estimators.mediapipe_estimator.MediaPipePoseEstimator,
+        import src.pose_estimators.mediapipe_estimator
+        monkeypatch.setattr(src.pose_estimators.mediapipe_estimator.MediaPipePoseEstimator,
                             'process_video', mock_process_video)
 
         # Initialize pipeline

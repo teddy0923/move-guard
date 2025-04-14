@@ -351,10 +351,6 @@ def load_video_metadata_file(metadata_path, config=None):
             else:
                 return None
 
-        # Get start/end frame field names
-        start_frame_fields = field_mappings.get('start_frame_fields', ['start_frame'])
-        end_frame_fields = field_mappings.get('end_frame_fields', ['end_frame'])
-
         # Create metadata dictionary
         metadata_dict = {}
         for _, row in metadata_df.iterrows():
@@ -367,21 +363,35 @@ def load_video_metadata_file(metadata_path, config=None):
             # Initialize metadata for this video
             video_metadata = {}
 
-            # Add any other metadata columns
+            # First add any other metadata columns (non-repetition data)
             for col in metadata_df.columns:
-                if col != id_field and pd.notna(
-                        row[col]) and col not in start_frame_fields and col not in end_frame_fields:
+                if col != id_field and pd.notna(row[col]):
                     video_metadata[col] = row[col]
 
-            # Process each set of start/end frames (for multiple repetitions)
+            # Find repetition columns dynamically
+            rep_columns = metadata_df.columns.tolist()
             repetitions = []
-            for start_field, end_field in zip(start_frame_fields, end_frame_fields):
-                if start_field in row and end_field in row:
-                    if pd.notna(row[start_field]) and pd.notna(row[end_field]):
+
+            # Look for columns that follow the pattern rep#_start and rep#_end
+            import re
+            start_pattern = re.compile(r'rep(\d+)_start')
+
+            for col in rep_columns:
+                start_match = start_pattern.match(col)
+                if start_match and pd.notna(row[col]):
+                    rep_num = start_match.group(1)
+                    end_col = f'rep{rep_num}_end'
+
+                    # Only add if both start and end values exist and are valid
+                    if end_col in rep_columns and pd.notna(row[end_col]):
                         repetitions.append({
-                            'start_frame': int(row[start_field]),
-                            'end_frame': int(row[end_field])
+                            'rep_num': int(rep_num),
+                            'start_frame': int(row[col]),
+                            'end_frame': int(row[end_col])
                         })
+
+            # Sort repetitions by rep_num
+            repetitions.sort(key=lambda x: x['rep_num'])
 
             # If there are repetitions, add them to metadata
             if repetitions:

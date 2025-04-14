@@ -2,6 +2,8 @@
 
 # Path settings
 paths:
+  config:
+    movements: "config/movements/"
   data:
     raw: "data/raw/"
     landmarks: "data/landmarks/"

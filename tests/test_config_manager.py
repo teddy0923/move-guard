@@ -9,7 +9,7 @@ test_dir = Path(__file__).resolve().parent
 project_root = test_dir.parent
 sys.path.insert(0, str(project_root))
 
-from core.config_manager import ConfigLoader
+from src.core.config_manager import ConfigLoader
 
 
 class TestConfigManager:

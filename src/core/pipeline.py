@@ -31,7 +31,7 @@ class Pipeline:
         pose_algorithm = self.config.get('pose_estimation', {}).get('algorithm', 'mediapipe')
         try:
             if pose_algorithm == 'mediapipe':
-                from pose_estimators.mediapipe_estimator import MediaPipePoseEstimator
+                from src.pose_estimators.mediapipe_estimator import MediaPipePoseEstimator
                 self.components['pose_estimator'] = MediaPipePoseEstimator(
                     self.config.get('pose_estimation', {})
                 )
@@ -47,7 +47,7 @@ class Pipeline:
         movement_type = self.config.get('feature_extraction', {}).get('default_movement', 'squat')
         try:
             if movement_type == 'squat':
-                from feature_extractors.squat_feature_extractor import SquatFeatureExtractor
+                from src.feature_extractors.squat_feature_extractor import SquatFeatureExtractor
                 self.components['feature_extractor'] = SquatFeatureExtractor(
                     self.config, movement_type
                 )
@@ -63,7 +63,7 @@ class Pipeline:
         ml_algorithm = self.config.get('ml_model', {}).get('algorithm', 'random_forest')
         try:
             if ml_algorithm == 'random_forest':
-                from models.traditional.random_forest_model import RandomForestModel
+                from src.models.traditional.random_forest_model import RandomForestModel
                 self.components['ml_model'] = RandomForestModel(
                     self.config.get('ml_model', {})
                 )
@@ -88,7 +88,7 @@ class Pipeline:
         Returns:
             Dictionary with processing results
         """
-        from core.file_utils import ensure_directory_exists
+        from src.core.file_utils import ensure_directory_exists
 
         if output_path is None:
             output_path = os.path.join(

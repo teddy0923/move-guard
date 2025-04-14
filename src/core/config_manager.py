@@ -28,7 +28,25 @@ class ConfigLoader:
         Returns:
             config: Dictionary with configuration parameters
         """
+        # First try the main config directory
         config_path = os.path.join(self.config_dir, f"{config_name}.yaml")
+
+        if not os.path.exists(config_path) and config_name != 'default':
+            # Load default config to get the movements path
+            default_config = self.configs.get('default')
+            if not default_config:
+                default_config = self.load_config('default')
+
+            if default_config and 'paths' in default_config and 'config' in default_config['paths']:
+                # Get the movements directory from the default config
+                movements_dir = default_config['paths']['config'].get('movements', '')
+                if movements_dir:
+                    # Resolve the path (if relative)
+                    if not os.path.isabs(movements_dir):
+                        movements_dir = os.path.join(os.path.dirname(self.config_dir), movements_dir)
+
+                    # Try loading from the movements directory
+                    config_path = os.path.join(movements_dir, f"{config_name}.yaml")
 
         if not os.path.exists(config_path):
             logging.error(f"Configuration file not found: {config_path}")

@@ -12,10 +12,10 @@ test_dir = Path(__file__).resolve().parent
 project_root = test_dir.parent
 sys.path.insert(0, str(project_root))
 
-from core.config_manager import ConfigLoader
-from pose_estimators.mediapipe_estimator import MediaPipePoseEstimator
-from feature_extractors.squat_feature_extractor import SquatFeatureExtractor
-from models.traditional.random_forest_model import RandomForestModel
+from src.core.config_manager import ConfigLoader
+from src.pose_estimators.mediapipe_estimator import MediaPipePoseEstimator
+from src.feature_extractors.squat_feature_extractor import SquatFeatureExtractor
+from src.models.traditional.random_forest_model import RandomForestModel
 
 
 @pytest.fixture(scope="session")

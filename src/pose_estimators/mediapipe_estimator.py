@@ -1,7 +1,7 @@
 # pose_estimators/mediapipe_estimator.py
 import numpy as np
 import logging
-from pose_estimators.base_estimator import BasePoseEstimator
+from src.pose_estimators.base_estimator import BasePoseEstimator
 
 
 class MediaPipePoseEstimator(BasePoseEstimator):

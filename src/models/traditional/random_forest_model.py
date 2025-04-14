@@ -1,7 +1,7 @@
 # ml_models/random_forest_model.py
 import numpy as np
 import logging
-from ml_models.base_model import BaseMLModel
+from src.models.base_model import BaseMLModel
 
 
 class RandomForestModel(BaseMLModel):

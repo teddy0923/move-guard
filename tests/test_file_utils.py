@@ -12,7 +12,7 @@ test_dir = Path(__file__).resolve().parent
 project_root = test_dir.parent
 sys.path.insert(0, str(project_root))
 
-from core.file_utils import (
+from src.core.file_utils import (
     ensure_directory_exists,
     save_landmarks,
     load_landmarks,
