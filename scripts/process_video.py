@@ -10,6 +10,18 @@ import argparse
 import logging
 from pathlib import Path
 
+# Configure root logger
+logging.basicConfig(
+    level=logging.ERROR,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+# Set all loggers to INFO level
+logging.getLogger().setLevel(logging.INFO)
+
 # Add project root to path to allow imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -61,6 +73,14 @@ def main():
         else:
             logging.warning("No valid metadata loaded, will process entire videos")
 
+    # After loading video_metadata
+    logging.info(f"Loaded metadata for videos: {list(video_metadata.keys()) if video_metadata else 'None'}")
+    if video_id in video_metadata:
+        logging.info(f"Found metadata for video {video_id}: {video_metadata[video_id]}")
+    else:
+        logging.info(f"No metadata found for video {video_id}")
+
+
     # Initialize pipeline
     pipeline = Pipeline(config)
 
@@ -90,7 +110,7 @@ def main():
 
     elif os.path.isdir(args.video):
         # Process all videos in directory
-        from core.file_utils import list_files
+        from src.core.file_utils import list_files
 
         video_files = list_files(args.video, extension=('.mp4', '.avi', '.mov'))
         logging.info(f"Found {len(video_files)} video files to process")

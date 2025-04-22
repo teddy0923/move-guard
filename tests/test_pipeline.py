@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import numpy as np
 import pandas as pd
-import src.pose_estimators.mediapipe_estimator
+import src.pose_estimators.mediapipe_estimator_stub
 
 # Add the project root to the path
 test_dir = Path(__file__).resolve().parent
@@ -47,7 +47,7 @@ class TestPipeline:
         assert 'ml_model' in pipeline.components
 
         # Verify component types
-        from src.pose_estimators.mediapipe_estimator import MediaPipePoseEstimator
+        from src.pose_estimators.mediapipe_estimator_stub import MediaPipePoseEstimator
         from src.feature_extractors.squat_feature_extractor import SquatFeatureExtractor
         from src.models.traditional.random_forest_model import RandomForestModel
 
@@ -90,8 +90,8 @@ class TestPipeline:
             return np.random.random((10, 33, 3))
 
         # Apply mock
-        import src.pose_estimators.mediapipe_estimator
-        monkeypatch.setattr(src.pose_estimators.mediapipe_estimator.MediaPipePoseEstimator,
+        import src.pose_estimators.mediapipe_estimator_stub
+        monkeypatch.setattr(src.pose_estimators.mediapipe_estimator_stub.MediaPipePoseEstimator,
                             'process_video', mock_process_video)
 
         # Initialize pipeline

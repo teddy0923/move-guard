@@ -105,6 +105,7 @@ class Pipeline:
                 video_path, output_path, video_segment
             )
 
+
             if landmarks is None:
                 logging.error(f"Failed to extract landmarks from {video_path}")
                 return {'success': False, 'stage': 'landmark_extraction', 'error': 'Landmark extraction failed'}

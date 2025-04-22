@@ -13,7 +13,7 @@ project_root = test_dir.parent
 sys.path.insert(0, str(project_root))
 
 from src.core.config_manager import ConfigLoader
-from src.pose_estimators.mediapipe_estimator import MediaPipePoseEstimator
+from src.pose_estimators.mediapipe_estimator_stub import MediaPipePoseEstimator
 from src.feature_extractors.squat_feature_extractor import SquatFeatureExtractor
 from src.models.traditional.random_forest_model import RandomForestModel
 
@@ -191,8 +191,8 @@ def mock_video_processing(monkeypatch):
         return landmarks
 
     # Apply mock to pose estimator
-    import pose_estimators.mediapipe_estimator
-    monkeypatch.setattr(pose_estimators.mediapipe_estimator.MediaPipePoseEstimator,
+    import pose_estimators.mediapipe_estimator_stub
+    monkeypatch.setattr(pose_estimators.mediapipe_estimator_stub.MediaPipePoseEstimator,
                         'process_video', mock_process_video)
 
 

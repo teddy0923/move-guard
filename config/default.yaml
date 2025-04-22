@@ -18,6 +18,10 @@ paths:
         id_field: "Filename"         # Maps to "video_id" internally
         movement_field: "Movement"   # Additional metadata
         view_field: "View_Angle"     # Additional metadata
+        view_angle_options: # Valid values for View_Angle
+          - "front"
+          - "sag_left"
+          - "sag_right"
         start_frame_fields: # Multiple possible start frames
           - "rep1_start"
           - "rep2_start"

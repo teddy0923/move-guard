@@ -227,3 +227,19 @@ class TestScripts:
         assert args.config == 'default'  # Default value
         assert args.movement == 'squat'  # Default value
         assert args.angles is False  # Default value
+
+    def test_mediapipe_estimator():
+        """Test the MediaPipe pose estimator implementation"""
+        from tests.test_mediapipe_estimator import TestMediaPipePoseEstimator
+        import unittest
+
+        # Create a test suite with all tests from TestMediaPipePoseEstimator
+        suite = unittest.TestLoader().loadTestsFromTestCase(TestMediaPipePoseEstimator)
+
+        # Run the tests and collect results
+        result = unittest.TextTestRunner().run(suite)
+
+        # Check if any tests failed
+        assert result.wasSuccessful(), f"MediaPipe estimator tests failed: {result.failures}"
+
+        print("MediaPipe estimator tests passed successfully")
