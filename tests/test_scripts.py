@@ -243,3 +243,30 @@ class TestScripts:
         assert result.wasSuccessful(), f"MediaPipe estimator tests failed: {result.failures}"
 
         print("MediaPipe estimator tests passed successfully")
+
+
+    def test_mediapipe_estimator_real_data(self):
+
+        from tests.test_mediapipe_estimator import TestMediaPipePoseEstimator
+        import unittest
+
+        """Test the MediaPipe pose estimator implementation"""
+        # Load a small test video file from your test data
+        test_video_path = "tests/data/test_squat.mp4"
+        test_output_path = "tests/data/output"
+
+        # Create an instance of the estimator
+        config = self.config_loader.load_config('default')
+        estimator = MediaPipePoseEstimator(config['pose_estimation'])
+
+        # Process the video
+        landmarks = estimator.process_video(test_video_path, test_output_path)
+
+        # Verify landmarks were extracted
+        self.assertIsNotNone(landmarks)
+        self.assertTrue(landmarks.shape[0] > 0)  # We have at least one frame
+        self.assertEqual(landmarks.shape[1], 33)  # MediaPipe returns 33 landmarks
+        self.assertEqual(landmarks.shape[2], 4)  # Each landmark has x, y, z, visibility
+
+        # Verify output files were created
+        self.assertTrue(os.path.exists(os.path.join(test_output_path, "test_squat_landmarks.npy")))

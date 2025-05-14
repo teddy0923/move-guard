@@ -158,7 +158,7 @@ class TestMediaPipePoseEstimator(unittest.TestCase):
         """Test landmark visualization"""
         estimator = MediaPipePoseEstimator(self.config['pose_estimation'])
 
-        # Create dummy landmarks
+        # Create dummy landmarks that are valid (33 landmarks with x, y, z, visibility)
         landmarks = np.zeros((33, 4), dtype=np.float32)
         for i in range(33):
             landmarks[i, 0] = 0.5  # x
@@ -174,7 +174,6 @@ class TestMediaPipePoseEstimator(unittest.TestCase):
         self.assertEqual(vis_frame.shape, self.test_frame.shape)
 
         # Verify landmarks were drawn (changes were made to the frame)
-        # This is a simple test to see if any modification happened
         self.assertFalse(np.array_equal(vis_frame, self.test_frame))
 
     @mock.patch('os.path.exists')

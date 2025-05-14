@@ -35,7 +35,12 @@ class Pipeline:
                 self.components['pose_estimator'] = MediaPipePoseEstimator(
                     self.config.get('pose_estimation', {})
                 )
-            # Can add other pose estimators here as they are implemented
+            elif pose_algorithm == 'openpose':
+                from src.pose_estimators.openpose_estimator import OpenPosePoseEstimator
+                self.components['pose_estimator'] = OpenPosePoseEstimator(
+                    self.config.get('pose_estimation', {})
+                )
+            # Add more estimators as needed
             else:
                 logging.error(f"Unsupported pose estimation algorithm: {pose_algorithm}")
                 raise ValueError(f"Unsupported pose estimation algorithm: {pose_algorithm}")
@@ -51,7 +56,12 @@ class Pipeline:
                 self.components['feature_extractor'] = SquatFeatureExtractor(
                     self.config, movement_type
                 )
-            # Can add other feature extractors here as they are implemented
+            elif movement_type == 'ybt':
+                from src.feature_extractors.ybt_feature_extractor import YBTFeatureExtractor
+                self.components['feature_extractor'] = YBTFeatureExtractor(
+                    self.config, movement_type
+                )
+            # Add more movement types as needed
             else:
                 logging.error(f"Unsupported movement type: {movement_type}")
                 raise ValueError(f"Unsupported movement type: {movement_type}")
@@ -59,21 +69,31 @@ class Pipeline:
             logging.error(f"Failed to import feature extractor: {str(e)}")
             raise
 
-        # Initialize ML model
+        '''# Initialize ML model 
         ml_algorithm = self.config.get('ml_model', {}).get('algorithm', 'random_forest')
         try:
             if ml_algorithm == 'random_forest':
-                from src.models.traditional.random_forest_model import RandomForestModel
+                from src.ml_models.random_forest_model import RandomForestModel
                 self.components['ml_model'] = RandomForestModel(
                     self.config.get('ml_model', {})
                 )
-            # Can add other ML models here as they are implemented
+            elif ml_algorithm == 'svm':
+                from src.ml_models.svm_model import SVMModel
+                self.components['ml_model'] = SVMModel(
+                    self.config.get('ml_model', {})
+                )
+            elif ml_algorithm == 'neural_network':
+                from src.ml_models.neural_network_model import NeuralNetworkModel
+                self.components['ml_model'] = NeuralNetworkModel(
+                    self.config.get('ml_model', {})
+                )
+            # Add more ML models as needed
             else:
                 logging.error(f"Unsupported ML algorithm: {ml_algorithm}")
                 raise ValueError(f"Unsupported ML algorithm: {ml_algorithm}")
         except ImportError as e:
             logging.error(f"Failed to import ML model: {str(e)}")
-            raise
+            raise '''
 
     def process_video(self, video_path: str, output_path: Optional[str] = None,
                       video_segment: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -100,6 +120,8 @@ class Pipeline:
 
         try:
             # Step 1: Process video to extract landmarks
+            if video_segment:
+                logging.info(f"Pipeline passing video_segment: {video_segment}")
             logging.info(f"Extracting landmarks from {video_path}")
             landmarks = self.components['pose_estimator'].process_video(
                 video_path, output_path, video_segment

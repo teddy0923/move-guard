@@ -27,28 +27,37 @@ def ensure_directory_exists(directory_path):
         return False
 
 
-def save_landmarks(landmarks, output_path, filename):
+def save_landmarks(landmarks, output_path, filename, estimator_name, metadata=None):
     """
-    Save extracted landmarks to a numpy file
+    Save extracted landmarks to a numpy file, with optional metadata
 
     Args:
         landmarks: Numpy array of landmarks
         output_path: Directory to save the file
         filename: Name of the file without extension
+        estimator_name: Name of the pose estimator algorithm
+        metadata: Optional dictionary with metadata to save alongside landmarks
 
     Returns:
         str: Path to the saved file or None if error
     """
     ensure_directory_exists(output_path)
     try:
-        file_path = os.path.join(output_path, f"{filename}.npy")
+        file_path = os.path.join(output_path, f"{filename}_{estimator_name}.npy")
         np.save(file_path, landmarks)
         logging.info(f"Landmarks saved to {file_path}")
+
+        # Save metadata if provided
+        if metadata:
+            metadata_file = os.path.join(output_path, f"{filename}_{estimator_name}_metadata.json")
+            with open(metadata_file, 'w') as f:
+                json.dump(metadata, f, indent=4)
+            logging.info(f"Landmark metadata saved to {metadata_file}")
+
         return file_path
     except Exception as e:
         logging.error(f"Error saving landmarks: {str(e)}")
         return None
-
 
 def load_landmarks(file_path):
     """
@@ -407,3 +416,10 @@ def load_video_metadata_file(metadata_path, config=None):
     except Exception as e:
         logging.error(f"Error loading video metadata from {metadata_path}: {str(e)}")
         return None
+
+def save_video_metadata(metadata, output_path, filename):
+    """Save video metadata alongside landmark data"""
+    metadata_file = os.path.join(output_path, f"{filename}_metadata.json")
+    with open(metadata_file, 'w') as f:
+        json.dump(metadata, f, indent=4)
+    return metadata_file
