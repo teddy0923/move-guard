@@ -102,30 +102,40 @@ class SquatFeatureExtractor(BaseFeatureExtractor):
                 view_angle = video_metadata['view_angle']
 
         features['video_id'] = video_id
+        features['view_angle'] = view_angle
 
         # Detect movement phases
         phases = self.detect_movement_phases(landmarks_sequence)
 
-        # Calculate ankle angle for each frame
-        ankle_angles = []
-        for frame_idx, landmarks in enumerate(landmarks_sequence):
-            try:
-                angle = self.calculate_ankle_angle(landmarks, view_angle)
-                ankle_angles.append(angle)
-            except Exception as e:
-                logging.error(f"Error calculating ankle angle for frame {frame_idx}: {str(e)}")
-                ankle_angles.append(0.0)  # Use default value on error
+        # Only calculate ankle angle for sagittal views
+        if view_angle.lower() in ["sag_left", "sag_right", "sagittal_left", "sagittal_right", "sagittal"]:
+            # Calculate ankle angle for each frame
+            ankle_angles = []
+            for frame_idx, landmarks in enumerate(landmarks_sequence):
+                try:
+                    angle = self.calculate_ankle_angle(landmarks, view_angle)
+                    ankle_angles.append(angle)
+                except Exception as e:
+                    logging.error(f"Error calculating ankle angle for frame {frame_idx}: {str(e)}")
+                    ankle_angles.append(0.0)  # Use default value on error
 
-        # Calculate aggregate ankle angle statistics
-        if ankle_angles:
-            features['ankle_angle_min'] = min(ankle_angles)
-            features['ankle_angle_max'] = max(ankle_angles)
-            features['ankle_angle_mean'] = sum(ankle_angles) / len(ankle_angles)
-            features['frame_angles'] = ankle_angles  # Store all angles for detailed output
+            # Calculate aggregate ankle angle statistics
+            if ankle_angles:
+                features['ankle_angle_min'] = min(ankle_angles)
+                features['ankle_angle_max'] = max(ankle_angles)
+                features['ankle_angle_mean'] = sum(ankle_angles) / len(ankle_angles)
+                features['frame_angles'] = ankle_angles  # Store all angles for detailed output
+            else:
+                features['ankle_angle_min'] = 0.0
+                features['ankle_angle_max'] = 0.0
+                features['ankle_angle_mean'] = 0.0
+                features['frame_angles'] = []
         else:
-            features['ankle_angle_min'] = 0.0
-            features['ankle_angle_max'] = 0.0
-            features['ankle_angle_mean'] = 0.0
+            logging.info(f"Skipping ankle angle calculation for non-sagittal view: {view_angle}")
+            # Add empty ankle angle fields to maintain consistent DataFrame structure
+            features['ankle_angle_min'] = None
+            features['ankle_angle_max'] = None
+            features['ankle_angle_mean'] = None
             features['frame_angles'] = []
 
         # Return as DataFrame

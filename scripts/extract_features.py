@@ -23,7 +23,7 @@ def parse_args(args=None):
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(description='Extract features from pose landmarks')
 
-    parser.add_argument('--landmarks', type=str, required=True,
+    parser.add_argument('--landmarks', type=str,
                         help='Path to landmark file (.npy) or directory containing landmark files')
     parser.add_argument('--output', type=str,
                         help='Output directory for extracted features')
@@ -35,6 +35,137 @@ def parse_args(args=None):
                         help='Path to metadata CSV file with video information')
 
     return parser.parse_args(args)
+
+
+def process_landmarks_file(landmarks_path, output_path, feature_extractor, metadata_dict, all_features_df):
+    """Process a single landmarks file"""
+    video_id = Path(landmarks_path).stem.split('_')[0]  # Extract video ID from filename
+
+    logging.info(f"Extracting features from landmarks: {landmarks_path}")
+
+    # Load landmarks
+    landmarks = load_landmarks(landmarks_path)
+    if landmarks is None:
+        logging.error(f"Failed to load landmarks from {landmarks_path}")
+        return all_features_df, False
+
+    # Get metadata for this video - try both with and without extension
+    metadata_entry = None
+    if metadata_dict and video_id in metadata_dict:
+        metadata_entry = metadata_dict[video_id]
+    elif metadata_dict and f"{video_id}.mp4" in metadata_dict:
+        metadata_entry = metadata_dict[f"{video_id}.mp4"]
+
+    if metadata_entry:
+        video_metadata = metadata_entry.copy()
+        video_metadata['video_id'] = video_id
+        logging.info(f"Found metadata for video {video_id}")
+    else:
+        video_metadata = {'video_id': video_id}
+        logging.info(f"No metadata found for video {video_id}, using default")
+
+    # First, extract features for all frames for the detailed file
+    full_features_df = feature_extractor.extract_features(landmarks, video_metadata)
+
+    if full_features_df is None:
+        logging.error(f"Failed to extract features from {landmarks_path}")
+        return all_features_df, False
+
+    # Save frame-by-frame data for all frames
+    if 'frame_angles' in full_features_df.columns:
+        frame_angles = full_features_df['frame_angles'].iloc[0]
+
+        # Create directory for detailed outputs if needed
+        detailed_output_dir = os.path.join(output_path, 'detailed', video_id)
+        ensure_directory_exists(detailed_output_dir)
+
+        # Save detailed frame angles for all frames
+        frame_angles_df = pd.DataFrame({
+            'frame': range(len(frame_angles)),
+            'ankle_angle': frame_angles
+        })
+        frame_angles_file = os.path.join(detailed_output_dir, f"{video_id}_ankle_angles.csv")
+        frame_angles_df.to_csv(frame_angles_file, index=False)
+        logging.info(f"Saved detailed ankle angles for all frames to {frame_angles_file}")
+
+    # Now handle the aggregate statistics using repetition ranges
+    if 'repetitions' in video_metadata:
+        repetitions = video_metadata['repetitions']
+        logging.info(f"Found {len(repetitions)} repetitions in metadata for {video_id}")
+
+        # Create dataframe to hold aggregate stats for each repetition
+        rep_stats = []
+
+        for rep_idx, rep in enumerate(repetitions):
+            start_frame = rep.get('start_frame', 0)
+            end_frame = rep.get('end_frame', len(landmarks) - 1)
+
+            # Adjust end_frame if it exceeds the landmark sequence length
+            end_frame = min(end_frame, len(landmarks) - 1)
+
+            logging.info(f"Analyzing repetition {rep_idx + 1}: frames {start_frame} to {end_frame}")
+
+            # Extract angles for this repetition from the full set
+            if 'frame_angles' in full_features_df.columns and len(full_features_df['frame_angles'].iloc[0]) > 0:
+                rep_angles = full_features_df['frame_angles'].iloc[0][start_frame:end_frame + 1]
+
+                if rep_angles:
+                    # Calculate stats for this repetition
+                    rep_stats.append({
+                        'video_id': video_id,
+                        'repetition': rep_idx + 1,
+                        'ankle_angle_min': min(rep_angles),
+                        'ankle_angle_max': max(rep_angles),
+                        'ankle_angle_mean': sum(rep_angles) / len(rep_angles),
+                        'start_frame': start_frame,
+                        'end_frame': end_frame
+                    })
+
+        # Create aggregated features dataframe
+        if rep_stats:
+            features_df = pd.DataFrame(rep_stats)
+
+            # Save individual features file with repetition stats
+            save_features(features_df, output_path, video_id)
+            logging.info(f"Successfully extracted features with {len(rep_stats)} repetitions from {landmarks_path}")
+
+            # Add to all features
+            updated_features_df = pd.concat([all_features_df, features_df], ignore_index=True)
+            return updated_features_df, True
+        else:
+            logging.warning(f"No valid repetitions to analyze for {video_id}")
+            return all_features_df, False
+    else:
+        # No repetitions in metadata, use stats from all frames
+        logging.info(f"No repetitions found in metadata for {video_id}, using stats from all frames")
+
+        # Remove frame_angles column from features_df before saving aggregated features
+        if 'frame_angles' in full_features_df.columns:
+            full_features_df = full_features_df.drop('frame_angles', axis=1)
+
+        # Save individual features file
+        save_features(full_features_df, output_path, video_id)
+        logging.info(f"Successfully extracted features from all frames in {landmarks_path}")
+
+        # Add to all features
+        updated_features_df = pd.concat([all_features_df, full_features_df], ignore_index=True)
+        return updated_features_df, True
+
+
+def process_landmarks_directory(landmarks_dir, output_path, feature_extractor, metadata_dict, all_features_df):
+    """Process all landmark files in a directory"""
+    landmark_files = list_files(landmarks_dir, extension='.npy')
+    logging.info(f"Found {len(landmark_files)} landmark files to process")
+
+    success_count = 0
+    for landmarks_path in landmark_files:
+        all_features_df, success = process_landmarks_file(landmarks_path, output_path, feature_extractor, metadata_dict,
+                                                          all_features_df)
+        if success:
+            success_count += 1
+
+    logging.info(f"Extracted features from {success_count}/{len(landmark_files)} landmark files successfully")
+    return all_features_df, success_count > 0
 
 
 def main():
@@ -106,131 +237,52 @@ def main():
             logging.warning("Failed to load metadata or metadata file empty")
     else:
         logging.info("No metadata path available, proceeding without metadata")
+        if not args.landmarks:
+            logging.error(
+                "No metadata and no landmarks path provided. Either --landmarks or valid metadata is required.")
+            sys.exit(1)
 
     # Initialize DataFrame to collect all features
     all_features_df = pd.DataFrame()
 
-
-    # Process single landmark file or directory of landmark files
-    if os.path.isfile(args.landmarks) and args.landmarks.endswith('.npy'):
-        # Process single landmarks file
-        landmarks_path = args.landmarks
-        video_id = Path(landmarks_path).stem.split('_')[0]  # Extract video ID from filename
-
-        logging.info(f"Extracting features from landmarks: {landmarks_path}")
-
-        # Load landmarks
-        landmarks = load_landmarks(landmarks_path)
-        if landmarks is None:
-            logging.error(f"Failed to load landmarks from {landmarks_path}")
+    # Process files based on landmarks path or metadata
+    if args.landmarks:
+        # Process landmarks from specified path
+        if os.path.isfile(args.landmarks) and args.landmarks.endswith('.npy'):
+            # Process single landmarks file
+            all_features_df, _ = process_landmarks_file(args.landmarks, args.output, feature_extractor, metadata_dict,
+                                                        all_features_df)
+        elif os.path.isdir(args.landmarks):
+            # Process all landmark files in directory
+            all_features_df, _ = process_landmarks_directory(args.landmarks, args.output, feature_extractor,
+                                                             metadata_dict, all_features_df)
+        else:
+            logging.error(f"Landmarks path is not a valid .npy file or directory: {args.landmarks}")
             sys.exit(1)
-
-        # Get metadata for this video if available
-        video_metadata = None
-        if metadata_dict and video_id in metadata_dict:
-            video_metadata = metadata_dict[video_id]
-            video_metadata['video_id'] = video_id
-            logging.info(f"Found metadata for video {video_id}")
-        else:
-            video_metadata = {'video_id': video_id}
-            logging.info(f"No metadata found for video {video_id}, using default")
-
-        # Extract features
-        features_df = feature_extractor.extract_features(landmarks, video_metadata)
-
-        if features_df is not None:
-            # Save frame-by-frame data if available
-            if 'frame_angles' in features_df.columns:
-                frame_angles = features_df['frame_angles'].iloc[0]
-
-                # Create directory for detailed outputs if needed
-                detailed_output_dir = os.path.join(args.output, 'detailed', video_id)
-                ensure_directory_exists(detailed_output_dir)
-
-                # Save detailed frame angles
-                frame_angles_df = pd.DataFrame({
-                    'frame': range(len(frame_angles)),
-                    'ankle_angle': frame_angles
-                })
-                frame_angles_file = os.path.join(detailed_output_dir, f"{video_id}_ankle_angles.csv")
-                frame_angles_df.to_csv(frame_angles_file, index=False)
-                logging.info(f"Saved detailed ankle angles to {frame_angles_file}")
-
-                # Remove frame_angles column from features_df before saving aggregated features
-                features_df = features_df.drop('frame_angles', axis=1)
-
-            # Add to all features
-            all_features_df = pd.concat([all_features_df, features_df], ignore_index=True)
-
-            # Save individual features file
-            save_features(features_df, args.output, video_id)
-            logging.info(f"Successfully extracted features from {landmarks_path}")
-        else:
-            logging.error(f"Failed to extract features from {landmarks_path}")
-
-    elif os.path.isdir(args.landmarks):
-        # Process all landmark files in directory
-        landmark_files = list_files(args.landmarks, extension='.npy')
-        logging.info(f"Found {len(landmark_files)} landmark files to process")
+    elif metadata_dict:
+        # Find and process landmarks for each video in metadata
+        raw_video_dir = config.get('paths', {}).get('data', {}).get('raw', 'data/raw/')
+        processed_video_dir = config.get('paths', {}).get('data', {}).get('processed_videos', {}).get('basic',
+                                                                                                      'data/processed_videos/basic/')
 
         success_count = 0
-        for landmarks_path in landmark_files:
-            video_id = Path(landmarks_path).stem.split('_')[0]  # Extract video ID from filename
-            logging.info(f"Extracting features from landmarks: {landmarks_path}")
+        for video_id in metadata_dict.keys():
+            # Construct the expected path to the landmarks file
+            video_dir = os.path.join(processed_video_dir, Path(video_id).stem)
+            landmarks_path = os.path.join(video_dir, f"{Path(video_id).stem}_mediapipe.npy")
 
-            # Load landmarks
-            landmarks = load_landmarks(landmarks_path)
-            if landmarks is None:
-                logging.error(f"Failed to load landmarks from {landmarks_path}")
-                continue
-
-            # Get metadata for this video if available
-            video_metadata = None
-            if metadata_dict and video_id in metadata_dict:
-                video_metadata = metadata_dict[video_id]
-                video_metadata['video_id'] = video_id
-                logging.info(f"Found metadata for video {video_id}")
+            if os.path.exists(landmarks_path):
+                logging.info(f"Found landmarks for {video_id} at {landmarks_path}")
+                all_features_df, success = process_landmarks_file(landmarks_path, args.output, feature_extractor,
+                                                                  metadata_dict, all_features_df)
+                if success:
+                    success_count += 1
             else:
-                video_metadata = {'video_id': video_id}
-                logging.info(f"No metadata found for video {video_id}, using default")
+                logging.warning(f"Landmarks file not found for {video_id} at expected path: {landmarks_path}")
 
-            # Extract features
-            features_df = feature_extractor.extract_features(landmarks, video_metadata)
-
-            if features_df is not None:
-                # Save frame-by-frame data if available
-                if 'frame_angles' in features_df.columns:
-                    frame_angles = features_df['frame_angles'].iloc[0]
-
-                    # Create directory for detailed outputs if needed
-                    detailed_output_dir = os.path.join(args.output, 'detailed', video_id)
-                    ensure_directory_exists(detailed_output_dir)
-
-                    # Save detailed frame angles
-                    frame_angles_df = pd.DataFrame({
-                        'frame': range(len(frame_angles)),
-                        'ankle_angle': frame_angles
-                    })
-                    frame_angles_file = os.path.join(detailed_output_dir, f"{video_id}_ankle_angles.csv")
-                    frame_angles_df.to_csv(frame_angles_file, index=False)
-                    logging.info(f"Saved detailed ankle angles to {frame_angles_file}")
-
-                    # Remove frame_angles column from features_df before saving aggregated features
-                    features_df = features_df.drop('frame_angles', axis=1)
-
-                # Add to all features
-                all_features_df = pd.concat([all_features_df, features_df], ignore_index=True)
-
-                # Save individual features file
-                save_features(features_df, args.output, video_id)
-                success_count += 1
-                logging.info(f"Successfully extracted features from {landmarks_path}")
-            else:
-                logging.error(f"Failed to extract features from {landmarks_path}")
-
-        logging.info(f"Extracted features from {success_count}/{len(landmark_files)} landmark files successfully")
+        logging.info(f"Processed {success_count}/{len(metadata_dict)} videos successfully")
     else:
-        logging.error(f"Landmarks path is not a valid .npy file or directory: {args.landmarks}")
+        logging.error("No landmarks path or valid metadata provided. Cannot proceed.")
         sys.exit(1)
 
     # Save combined features if any were extracted
