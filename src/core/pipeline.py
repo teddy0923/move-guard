@@ -134,6 +134,7 @@ class Pipeline:
 
             self.results['landmarks'] = landmarks
 
+
             # Step 2: Extract features from landmarks
             logging.info("Extracting features from landmarks")
             features = self.components['feature_extractor'].extract_features(landmarks)

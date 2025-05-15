@@ -58,7 +58,7 @@ features:
     ankle_angle:
       description: "Ankle dorsiflexion angle"
       calculation: "angle_between_vectors"
-      points: ["heel", "ankle", "knee"]
+      points: ["heel","foot_index", "ankle", "knee"]
       view: "sagittal"
       reference: "Dorsiflexion mobility"
       thresholds:  # Expert reference only, not used by ML
