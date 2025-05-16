@@ -74,6 +74,8 @@ def process_landmarks_file(landmarks_path, output_path, feature_extractor, metad
     # Save frame-by-frame data for all frames
     if 'frame_angles' in full_features_df.columns:
         frame_angles = full_features_df['frame_angles'].iloc[0]
+        knee_frame_angles = full_features_df['knee_frame_angles'].iloc[0]
+        hip_frame_angles = full_features_df['hip_flexion_frame_angles'].iloc[0]  # Get hip angles
 
         # Create directory for detailed outputs if needed
         detailed_output_dir = os.path.join(output_path, 'detailed', video_id)
@@ -82,7 +84,9 @@ def process_landmarks_file(landmarks_path, output_path, feature_extractor, metad
         # Save detailed frame angles for all frames
         frame_angles_df = pd.DataFrame({
             'frame': range(len(frame_angles)),
-            'ankle_angle': frame_angles
+            'ankle_angle': frame_angles,
+            'knee_angle': knee_frame_angles,
+            'hip_flexion': hip_frame_angles  # Add hip flexion column
         })
         frame_angles_file = os.path.join(detailed_output_dir, f"{video_id}_ankle_angles.csv")
         frame_angles_df.to_csv(frame_angles_file, index=False)
@@ -108,6 +112,8 @@ def process_landmarks_file(landmarks_path, output_path, feature_extractor, metad
             # Extract angles for this repetition from the full set
             if 'frame_angles' in full_features_df.columns and len(full_features_df['frame_angles'].iloc[0]) > 0:
                 rep_angles = full_features_df['frame_angles'].iloc[0][start_frame:end_frame + 1]
+                rep_angles_knee = full_features_df['knee_frame_angles'].iloc[0][start_frame:end_frame + 1]
+                rep_angles_hip = full_features_df['hip_flexion_frame_angles'].iloc[0][start_frame:end_frame + 1]  # Get hip angles for repetition
 
                 if rep_angles:
                     # Calculate stats for this repetition
@@ -117,6 +123,12 @@ def process_landmarks_file(landmarks_path, output_path, feature_extractor, metad
                         'ankle_angle_min': min(rep_angles),
                         'ankle_angle_max': max(rep_angles),
                         'ankle_angle_mean': sum(rep_angles) / len(rep_angles),
+                        'knee_angle_min': min(rep_angles_knee),
+                        'knee_angle_max': max(rep_angles_knee),
+                        'knee_angle_mean': sum(rep_angles_knee) / len(rep_angles_knee),
+                        'hip_flexion_min': min(rep_angles_hip),  # Add hip flexion stats
+                        'hip_flexion_max': max(rep_angles_hip),
+                        'hip_flexion_mean': sum(rep_angles_hip) / len(rep_angles_hip),
                         'start_frame': start_frame,
                         'end_frame': end_frame
                     })

@@ -107,17 +107,31 @@ class SquatFeatureExtractor(BaseFeatureExtractor):
         # Detect movement phases
         phases = self.detect_movement_phases(landmarks_sequence)
 
-        # Only calculate ankle angle for sagittal views
+        # Only calculate angles for sagittal views
         if view_angle.lower() in ["sag_left", "sag_right", "sagittal_left", "sagittal_right", "sagittal"]:
             # Calculate ankle angle for each frame
             ankle_angles = []
+            knee_angles = []  # New array for knee angles
+            hip_angles = []  # New array for hip angles
+
             for frame_idx, landmarks in enumerate(landmarks_sequence):
                 try:
-                    angle = self.calculate_ankle_angle(landmarks, view_angle)
-                    ankle_angles.append(angle)
+                    # Calculate ankle angle
+                    ankle_angle = self.calculate_ankle_angle(landmarks, view_angle)
+                    ankle_angles.append(ankle_angle)
+
+                    # Calculate knee angle
+                    knee_angle = self.calculate_knee_angle(landmarks, view_angle)
+                    knee_angles.append(knee_angle)
+
+                    # Calculate hip angle
+                    hip_angle = self.calculate_hip_flexion(landmarks, view_angle)
+                    hip_angles.append(hip_angle)
                 except Exception as e:
-                    logging.error(f"Error calculating ankle angle for frame {frame_idx}: {str(e)}")
+                    logging.error(f"Error calculating angles for frame {frame_idx}: {str(e)}")
                     ankle_angles.append(0.0)  # Use default value on error
+                    knee_angles.append(0.0)  # Use default value on error
+                    hip_angles.append(0.0)  # Use default value on error
 
             # Calculate aggregate ankle angle statistics
             if ankle_angles:
@@ -130,13 +144,45 @@ class SquatFeatureExtractor(BaseFeatureExtractor):
                 features['ankle_angle_max'] = 0.0
                 features['ankle_angle_mean'] = 0.0
                 features['frame_angles'] = []
+
+            # Calculate aggregate knee angle statistics
+            if knee_angles:
+                features['knee_angle_min'] = min(knee_angles)
+                features['knee_angle_max'] = max(knee_angles)
+                features['knee_angle_mean'] = sum(knee_angles) / len(knee_angles)
+                features['knee_frame_angles'] = knee_angles  # Store all knee angles for detailed output
+            else:
+                features['knee_angle_min'] = 0.0
+                features['knee_angle_max'] = 0.0
+                features['knee_angle_mean'] = 0.0
+                features['knee_frame_angles'] = []
+
+            # Calculate aggregate hip angle statistics
+            if hip_angles:
+                features['hip_flexion_min'] = min(hip_angles)
+                features['hip_flexion_max'] = max(hip_angles)
+                features['hip_flexion_mean'] = sum(hip_angles) / len(hip_angles)
+                features['hip_flexion_frame_angles'] = hip_angles  # Store all hip angles for detailed output
+            else:
+                features['hip_flexion_min'] = 0.0
+                features['hip_flexion_max'] = 0.0
+                features['hip_flexion_mean'] = 0.0
+                features['hip_flexion_frame_angles'] = []
         else:
-            logging.info(f"Skipping ankle angle calculation for non-sagittal view: {view_angle}")
-            # Add empty ankle angle fields to maintain consistent DataFrame structure
+            logging.info(f"Skipping angle calculation for non-sagittal view: {view_angle}")
+            # Add empty angle fields to maintain consistent DataFrame structure
             features['ankle_angle_min'] = None
             features['ankle_angle_max'] = None
             features['ankle_angle_mean'] = None
             features['frame_angles'] = []
+            features['knee_angle_min'] = None
+            features['knee_angle_max'] = None
+            features['knee_angle_mean'] = None
+            features['knee_frame_angles'] = []
+            features['hip_flexion_min'] = None
+            features['hip_flexion_max'] = None
+            features['hip_flexion_mean'] = None
+            features['hip_flexion_frame_angles'] = []
 
         # Return as DataFrame
         features_df = pd.DataFrame([features])
@@ -180,23 +226,16 @@ class SquatFeatureExtractor(BaseFeatureExtractor):
             angle: Calculated ankle angle in degrees
         """
         # Determine which side to use based on view_angle
-        if view_angle == "sag_left":
+        if view_angle.lower() in ["sag_left", "sagittal_left"]:
             heel_idx = self.landmark_indices['left_heel']
             foot_idx = self.landmark_indices['left_foot_index']
             ankle_idx = self.landmark_indices['left_ankle']
             knee_idx = self.landmark_indices['left_knee']
-        elif view_angle == "sag_right":
+        else:  # Default to right side for sagittal_right
             heel_idx = self.landmark_indices['right_heel']
             foot_idx = self.landmark_indices['right_foot_index']
             ankle_idx = self.landmark_indices['right_ankle']
             knee_idx = self.landmark_indices['right_knee']
-        else:
-            # Default to left side
-            heel_idx = self.landmark_indices['left_heel']
-            foot_idx = self.landmark_indices['left_foot_index']
-            ankle_idx = self.landmark_indices['left_ankle']
-            knee_idx = self.landmark_indices['left_knee']
-            logging.debug(f"Using left side for ankle angle calculation with view angle: {view_angle}")
 
         # Extract coordinates (only x and y for 2D analysis)
         heel = landmarks[heel_idx][:2]  # Only X and Y
@@ -220,6 +259,94 @@ class SquatFeatureExtractor(BaseFeatureExtractor):
             return angle_deg
         else:
             logging.warning("Zero magnitude vector detected when calculating ankle angle")
+            return 0
+
+    def calculate_knee_angle(self, landmarks, view_angle):
+        """
+        Calculate knee angle from landmarks
+
+        Args:
+            landmarks: Array of landmarks for a single frame
+            view_angle: Camera view angle (e.g., "sag_left", "sag_right", "front")
+
+        Returns:
+            angle: Calculated knee angle in degrees
+        """
+        # Determine which side to use based on view_angle
+        if view_angle.lower() in ["sag_left", "sagittal_left"]:
+            hip_idx = self.landmark_indices['left_hip']
+            knee_idx = self.landmark_indices['left_knee']
+            ankle_idx = self.landmark_indices['left_ankle']
+        else:  # Default to right side for sagittal_right
+            hip_idx = self.landmark_indices['right_hip']
+            knee_idx = self.landmark_indices['right_knee']
+            ankle_idx = self.landmark_indices['right_ankle']
+
+        # Extract coordinates (only x and y for 2D analysis)
+        hip = landmarks[hip_idx][:2]  # Only X and Y
+        knee = landmarks[knee_idx][:2]
+        ankle = landmarks[ankle_idx][:2]
+
+        # Calculate vectors
+        knee_hip_vector = [hip[0] - knee[0], hip[1] - knee[1]]
+        knee_ankle_vector = [ankle[0] - knee[0], ankle[1] - knee[1]]
+
+        # Calculate angle using dot product
+        knee_hip_mag = np.sqrt(knee_hip_vector[0] ** 2 + knee_hip_vector[1] ** 2)
+        knee_ankle_mag = np.sqrt(knee_ankle_vector[0] ** 2 + knee_ankle_vector[1] ** 2)
+
+        if knee_hip_mag > 0 and knee_ankle_mag > 0:
+            dot_product = knee_hip_vector[0] * knee_ankle_vector[0] + knee_hip_vector[1] * knee_ankle_vector[1]
+            cos_angle = max(min(dot_product / (knee_hip_mag * knee_ankle_mag), 1.0), -1.0)
+            angle_rad = np.arccos(cos_angle)
+            angle_deg = angle_rad * 180 / np.pi
+            return angle_deg
+        else:
+            logging.warning("Zero magnitude vector detected when calculating knee angle")
+            return 0
+
+    def calculate_hip_flexion(self, landmarks, view_angle):
+        """
+        Calculate hip flexion angle from landmarks (angle between shoulder, hip and knee)
+
+        Args:
+            landmarks: Array of landmarks for a single frame
+            view_angle: Camera view angle (e.g., "sag_left", "sag_right", "front")
+
+        Returns:
+            angle: Calculated hip flexion angle in degrees
+        """
+        # Determine which side to use based on view_angle
+        if view_angle.lower() in ["sag_left", "sagittal_left"]:
+            shoulder_idx = self.landmark_indices['left_shoulder']
+            hip_idx = self.landmark_indices['left_hip']
+            knee_idx = self.landmark_indices['left_knee']
+        else:  # Default to right side for sagittal_right
+            shoulder_idx = self.landmark_indices['right_shoulder']
+            hip_idx = self.landmark_indices['right_hip']
+            knee_idx = self.landmark_indices['right_knee']
+
+        # Extract coordinates (only x and y for 2D analysis)
+        shoulder = landmarks[shoulder_idx][:2]  # Only X and Y
+        hip = landmarks[hip_idx][:2]
+        knee = landmarks[knee_idx][:2]
+
+        # Calculate vectors
+        hip_shoulder_vector = [shoulder[0] - hip[0], shoulder[1] - hip[1]]
+        hip_knee_vector = [knee[0] - hip[0], knee[1] - hip[1]]
+
+        # Calculate angle using dot product
+        hip_shoulder_mag = np.sqrt(hip_shoulder_vector[0] ** 2 + hip_shoulder_vector[1] ** 2)
+        hip_knee_mag = np.sqrt(hip_knee_vector[0] ** 2 + hip_knee_vector[1] ** 2)
+
+        if hip_shoulder_mag > 0 and hip_knee_mag > 0:
+            dot_product = hip_shoulder_vector[0] * hip_knee_vector[0] + hip_shoulder_vector[1] * hip_knee_vector[1]
+            cos_angle = max(min(dot_product / (hip_shoulder_mag * hip_knee_mag), 1.0), -1.0)
+            angle_rad = np.arccos(cos_angle)
+            angle_deg = angle_rad * 180 / np.pi
+            return angle_deg
+        else:
+            logging.warning("Zero magnitude vector detected when calculating hip flexion angle")
             return 0
 
     def calculate_angles(self, landmarks, angle_config):

@@ -94,7 +94,7 @@ def draw_landmarks(frame, landmarks, connections, color=(0, 255, 0), thickness=2
     return frame
 
 
-def draw_ankle_angle(frame, landmarks, view_angle, angle_value=None, color=(0, 255, 255), thickness=3, debug=False):
+def draw_ankle_angle(frame, landmarks, view_angle, angle_value=None, color=(0, 255, 255), thickness=2, debug=False):
     """Draw ankle angle visualization with pre-calculated value"""
     h, w = frame.shape[:2]
 
@@ -183,7 +183,7 @@ def draw_ankle_angle(frame, landmarks, view_angle, angle_value=None, color=(0, 2
 
         # Draw text with black background for better visibility
         text = f"{angle_value:.1f} deg"
-        text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, thickness)
+        text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, thickness)
         cv2.rectangle(frame,
                       (text_x - 5, text_y - text_size[1] - 5),
                       (text_x + text_size[0] + 5, text_y + 5),
@@ -230,6 +230,210 @@ def draw_ankle_angle(frame, landmarks, view_angle, angle_value=None, color=(0, 2
             if debug:
                 print(f"Error calculating ankle angle: {str(e)}")
             logging.error(f"Error calculating ankle angle: {str(e)}")
+
+    return frame
+
+
+def draw_knee_angle(frame, landmarks, view_angle, angle_value=None, color=(255, 165, 0), thickness=2, debug=False):
+    """Draw knee angle visualization with pre-calculated value"""
+    h, w = frame.shape[:2]
+
+    if debug:
+        print(f"Drawing knee angle for view: {view_angle}")
+        print(f"Using pre-calculated angle value: {angle_value}")
+
+    # Determine which side to use based on view_angle
+    if view_angle.lower() in ["sag_left", "sagittal left", "sagittal_left"]:
+        hip_idx = 23  # left_hip
+        knee_idx = 25  # left_knee
+        ankle_idx = 27  # left_ankle
+    else:  # For sagittal right or default
+        hip_idx = 24  # right_hip
+        knee_idx = 26  # right_knee
+        ankle_idx = 28  # right_ankle
+
+    if debug:
+        print(f"Using landmarks: hip={hip_idx}, knee={knee_idx}, ankle={ankle_idx}")
+
+    # Check if indices are valid
+    if (hip_idx >= len(landmarks) or knee_idx >= len(landmarks) or ankle_idx >= len(landmarks)):
+        if debug:
+            print(f"Landmark indices out of range. Landmarks shape: {landmarks.shape}")
+        return frame
+
+    # Skip visibility checks during debugging
+    skip_visibility_check = debug
+    visibility_threshold = 0.0001
+
+    if not skip_visibility_check:
+        for idx in [hip_idx, knee_idx, ankle_idx]:
+            if len(landmarks[idx]) > 3 and landmarks[idx][3] < visibility_threshold:
+                if debug:
+                    print(f"Landmark {idx} visibility too low: {landmarks[idx][3]}")
+                return frame
+
+    # Get coordinates
+    hip_pos = (int(landmarks[hip_idx][0] * w), int(landmarks[hip_idx][1] * h))
+    knee_pos = (int(landmarks[knee_idx][0] * w), int(landmarks[knee_idx][1] * h))
+    ankle_pos = (int(landmarks[ankle_idx][0] * w), int(landmarks[ankle_idx][1] * h))
+
+    if debug:
+        print(f"Positions: hip={hip_pos}, knee={knee_pos}, ankle={ankle_pos}")
+
+    # Draw the segments that form the knee angle
+    cv2.line(frame, hip_pos, knee_pos, color, thickness)
+    cv2.line(frame, ankle_pos, knee_pos, color, thickness)
+
+    # Draw the knee angle value
+    if angle_value is not None:
+        text_x = knee_pos[0] + 10
+        text_y = knee_pos[1] - 20
+
+        text = f"{angle_value:.1f} deg"
+        text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, thickness)
+        cv2.rectangle(frame,
+                      (text_x - 5, text_y - text_size[1] - 5),
+                      (text_x + text_size[0] + 5, text_y + 5),
+                      (0, 0, 0), -1)
+
+        cv2.putText(frame, text, (text_x, text_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, thickness, cv2.LINE_AA)
+    else:
+        # Calculate angle on the fly
+        try:
+            hip_knee_vector = np.array([hip_pos[0] - knee_pos[0], hip_pos[1] - knee_pos[1]])
+            ankle_knee_vector = np.array([ankle_pos[0] - knee_pos[0], ankle_pos[1] - knee_pos[1]])
+
+            hip_knee_mag = np.linalg.norm(hip_knee_vector)
+            ankle_knee_mag = np.linalg.norm(ankle_knee_vector)
+
+            if hip_knee_mag > 0 and ankle_knee_mag > 0:
+                dot_product = np.dot(hip_knee_vector, ankle_knee_vector)
+                cos_angle = max(min(dot_product / (hip_knee_mag * ankle_knee_mag), 1.0), -1.0)
+                angle_rad = np.arccos(cos_angle)
+                angle_deg = np.degrees(angle_rad)
+
+                if debug:
+                    print(f"Calculated knee angle: {angle_deg:.1f}°")
+
+                text = f"{angle_deg:.1f}°"
+                text_x = knee_pos[0] + 10
+                text_y = knee_pos[1] - 20
+
+                text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, thickness)
+                cv2.rectangle(frame,
+                              (text_x - 5, text_y - text_size[1] - 5),
+                              (text_x + text_size[0] + 5, text_y + 5),
+                              (0, 0, 0), -1)
+
+                cv2.putText(frame, text, (text_x, text_y),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, thickness, cv2.LINE_AA)
+        except Exception as e:
+            if debug:
+                print(f"Error calculating knee angle: {str(e)}")
+            logging.error(f"Error calculating knee angle: {str(e)}")
+
+    return frame
+
+
+def draw_hip_flexion(frame, landmarks, view_angle, angle_value=None, color=(0, 120, 255), thickness=2, debug=False):
+    """Draw hip flexion angle visualization with pre-calculated value"""
+    h, w = frame.shape[:2]
+
+    if debug:
+        print(f"Drawing hip flexion for view: {view_angle}")
+        print(f"Using pre-calculated angle value: {angle_value}")
+
+    # Determine which side to use based on view_angle
+    if view_angle.lower() in ["sag_left", "sagittal left", "sagittal_left"]:
+        shoulder_idx = 11  # left_shoulder
+        hip_idx = 23  # left_hip
+        knee_idx = 25  # left_knee
+    else:  # For sagittal right or default
+        shoulder_idx = 12  # right_shoulder
+        hip_idx = 24  # right_hip
+        knee_idx = 26  # right_knee
+
+    if debug:
+        print(f"Using landmarks: shoulder={shoulder_idx}, hip={hip_idx}, knee={knee_idx}")
+
+    # Check if indices are valid
+    if (shoulder_idx >= len(landmarks) or hip_idx >= len(landmarks) or knee_idx >= len(landmarks)):
+        if debug:
+            print(f"Landmark indices out of range. Landmarks shape: {landmarks.shape}")
+        return frame
+
+    # Skip visibility checks during debugging
+    skip_visibility_check = debug
+    visibility_threshold = 0.0001
+
+    if not skip_visibility_check:
+        for idx in [shoulder_idx, hip_idx, knee_idx]:
+            if len(landmarks[idx]) > 3 and landmarks[idx][3] < visibility_threshold:
+                if debug:
+                    print(f"Landmark {idx} visibility too low: {landmarks[idx][3]}")
+                return frame
+
+    # Get coordinates
+    shoulder_pos = (int(landmarks[shoulder_idx][0] * w), int(landmarks[shoulder_idx][1] * h))
+    hip_pos = (int(landmarks[hip_idx][0] * w), int(landmarks[hip_idx][1] * h))
+    knee_pos = (int(landmarks[knee_idx][0] * w), int(landmarks[knee_idx][1] * h))
+
+    if debug:
+        print(f"Positions: shoulder={shoulder_pos}, hip={hip_pos}, knee={knee_pos}")
+
+    # Draw the segments that form the hip angle
+    cv2.line(frame, shoulder_pos, hip_pos, color, thickness)
+    cv2.line(frame, knee_pos, hip_pos, color, thickness)
+
+    # Draw the hip angle value
+    if angle_value is not None:
+        text_x = hip_pos[0] + 10
+        text_y = hip_pos[1] - 20
+
+        text = f"{angle_value:.1f} deg"
+        text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, thickness)
+        cv2.rectangle(frame,
+                      (text_x - 5, text_y - text_size[1] - 5),
+                      (text_x + text_size[0] + 5, text_y + 5),
+                      (0, 0, 0), -1)
+
+        cv2.putText(frame, text, (text_x, text_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, thickness, cv2.LINE_AA)
+    else:
+        try:
+            # Calculate vectors
+            hip_shoulder_vector = np.array([shoulder_pos[0] - hip_pos[0], shoulder_pos[1] - hip_pos[1]])
+            hip_knee_vector = np.array([knee_pos[0] - hip_pos[0], knee_pos[1] - hip_pos[1]])
+
+            hip_shoulder_mag = np.linalg.norm(hip_shoulder_vector)
+            hip_knee_mag = np.linalg.norm(hip_knee_vector)
+
+            if hip_shoulder_mag > 0 and hip_knee_mag > 0:
+                dot_product = np.dot(hip_shoulder_vector, hip_knee_vector)
+                cos_angle = max(min(dot_product / (hip_shoulder_mag * hip_knee_mag), 1.0), -1.0)
+                angle_rad = np.arccos(cos_angle)
+                angle_deg = np.degrees(angle_rad)
+
+                if debug:
+                    print(f"Calculated hip flexion angle: {angle_deg:.1f}°")
+
+                text = f"{angle_deg:.1f}°"
+                text_x = hip_pos[0] + 10
+                text_y = hip_pos[1] - 20
+
+                text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, thickness)
+                cv2.rectangle(frame,
+                              (text_x - 5, text_y - text_size[1] - 5),
+                              (text_x + text_size[0] + 5, text_y + 5),
+                              (0, 0, 0), -1)
+
+                cv2.putText(frame, text, (text_x, text_y),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, thickness, cv2.LINE_AA)
+        except Exception as e:
+            if debug:
+                print(f"Error calculating hip flexion angle: {str(e)}")
+            logging.error(f"Error calculating hip flexion angle: {str(e)}")
 
     return frame
 
@@ -408,15 +612,21 @@ def main():
                 if len(angles_df) > 0:
                     print(f"First row: {angles_df.iloc[0].to_dict()}")
 
-            if 'frame' in angles_df.columns and 'ankle_angle' in angles_df.columns:
-                angle_data = {int(row['frame']): row['ankle_angle'] for _, row in angles_df.iterrows()}
-                logging.info(f"Loaded ankle angles for {len(angle_data)} frames")
+            if 'frame' in angles_df.columns and 'ankle_angle' in angles_df.columns and 'knee_angle' in angles_df.columns:
+                angle_data = {
+                    int(row['frame']): {
+                        'ankle': row['ankle_angle'],
+                        'knee': row['knee_angle'],
+                        'hip_flexion': row['hip_flexion'] if 'hip_flexion' in angles_df.columns else None
+                    } for _, row in angles_df.iterrows()
+                }
+                logging.info(f"Loaded angles for {len(angle_data)} frames")
 
                 if args.debug:
                     first_items = list(angle_data.items())[:5]
                     print(f"First 5 angle values: {first_items}")
             else:
-                logging.warning("Angle data CSV missing required columns: 'frame' and 'ankle_angle'")
+                logging.warning("Angle data CSV missing required columns: 'frame', 'ankle_angle', or 'knee_angle'")
         except Exception as e:
             logging.error(f"Error loading angle data: {str(e)}")
 
@@ -510,32 +720,44 @@ def main():
             if not args.hide_landmarks:
                 frame = draw_landmarks(frame, frame_landmarks, body_connections)
 
-            # Draw ankle angle for sagittal views
+            # Draw ankle and knee angles for sagittal views
             if view_angle.lower() in ["sag_left", "sagittal left", "sagittal_left",
                                       "sag_right", "sagittal right", "sagittal_right"]:
-                # Get pre-calculated angle value if available
-                angle_value = None
+                # Get pre-calculated angle values if available
+                ankle_value = None
+                knee_value = None
+                hip_value = None
                 if angle_data and frame_idx in angle_data:
-                    angle_value = angle_data[frame_idx]
-                    if args.debug and frame_idx % 50 == 0:  # Only print every 50 frames to avoid spam
-                        print(f"Frame {frame_idx}: using angle value {angle_value}")
+                    ankle_value = angle_data[frame_idx]['ankle']
+                    knee_value = angle_data[frame_idx]['knee']
+                    hip_value = angle_data[frame_idx].get('hip_flexion')
+                    if args.debug and frame_idx % 50 == 0:
+                        print(f"Frame {frame_idx}: using ankle angle {ankle_value}, knee angle {knee_value}, hip angle {hip_value}")
                 elif args.debug and frame_idx % 50 == 0:
-                    print(f"Frame {frame_idx}: No angle value found in angle_data")
+                    print(f"Frame {frame_idx}: No angle values found in angle_data")
 
-                frame = draw_ankle_angle(frame, frame_landmarks, view_angle, angle_value, debug=args.debug)
+                frame = draw_ankle_angle(frame, frame_landmarks, view_angle, ankle_value, debug=args.debug)
+                frame = draw_knee_angle(frame, frame_landmarks, view_angle, knee_value, debug=args.debug)
+                frame = draw_hip_flexion(frame, frame_landmarks, view_angle, hip_value, debug=args.debug)
 
-                # Add dorsiflexion label in top-left corner
-                if angle_value is not None:
-                    # Create background for better visibility
-                    text = f"Dorsiflexion: {angle_value:.1f} deg"
-                    text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
-                    cv2.rectangle(frame,
-                                  (10, 40 - text_size[1] - 5),
-                                  (10 + text_size[0] + 10, 40 + 5),
-                                  (0, 0, 0), -1)
+                # Add angle labels in top-left corner
+                y_offset = 40
+                for label, value, color in [
+                    ("Dorsiflexion", ankle_value, (255, 255, 255)),
+                    ("Knee Flexion", knee_value, (255, 165, 0)),
+                    ("Hip Flexion", hip_value, (0, 120, 255))
+                ]:
+                    if value is not None:
+                        text = f"{label}: {value:.1f} deg"
+                        text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
+                        cv2.rectangle(frame,
+                                      (10, y_offset - text_size[1] - 5),
+                                      (10 + text_size[0] + 10, y_offset + 5),
+                                      (0, 0, 0), -1)
 
-                    cv2.putText(frame, text, (15, 40),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
+                        cv2.putText(frame, text, (15, y_offset),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2, cv2.LINE_AA)
+                        y_offset += 30  # Space for next label
 
             # Add frame number if enabled
             if args.show_frames:
