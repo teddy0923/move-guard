@@ -88,10 +88,32 @@ features:
         moderate: [60, 90]
         good: [90, 120]
 
+    shoulder_flexion:
+      description: "shoulder - angle between hip, shoulder and elbow"
+      calculation: "angle_between_vectors"
+      points: [ "hip", "shoulder", "elbow" ]
+      view: "sagittal"
+      reference: "shoulder mobility"
+      thresholds: # Expert reference only, not used by ML
+        poor: [ 0, 60 ]
+        moderate: [ 60, 90 ]
+        good: [ 90, 120 ]
+
+    elbow_flexion:
+      description: "elbow flexion - angle between shoulder, elbow and wrist"
+      calculation: "angle_between_vectors"
+      points: [  "shoulder", "elbow","wrist" ]
+      view: "front"
+      reference: "elbow compensation"
+      thresholds: # Expert reference only, not used by ML
+        poor: [ 0, 120 ]
+        moderate: [ 120, 150 ]
+        good: [ 150, 180 ]
+
     trunk_tibia_angle:
       description: "Angle between trunk and tibia - indicates forward lean"
       calculation: "angle_between_vectors"
-      points: ["shoulder", "hip", "ankle"]
+      points: ["shoulder", "hip", "knee","ankle"]
       view: "sagittal"
       reference: "Forward lean: trunk should be parallel to tibia or closer to vertical"
       thresholds:  # Expert reference only, not used by ML
@@ -100,7 +122,7 @@ features:
         poor: [0, 50]      # Excessive forward lean
 
     hip_alignment:
-      description: "Angle between hip line and ground perpendicular"
+      description: "left/right hip y position ratio"
       calculation: "angle_to_vertical"
       points: ["left_hip", "right_hip"]
       view: "frontal"
@@ -109,6 +131,18 @@ features:
         good: [85, 95]     # Nearly perpendicular
         moderate: [75, 85, 95, 105]
         poor: [0, 75, 105, 180]
+
+    shoulder_alignment:
+      description: "left/right shoulder y position ratio"
+      calculation: "angle_to_vertical"
+      points: [ "left_shoulder", "right_shoulder" ]
+      view: "frontal"
+      reference: "Symmetry and stability: shoulder joints should be aligned through movement"
+      thresholds: # Expert reference only, not used by ML
+        good: [ 85, 95 ]     # Nearly perpendicular
+        moderate: [ 75, 85, 95, 105 ]
+        poor: [ 0, 75, 105, 180 ]
+
 
     neck_line:
       description: "Angle between neck and vertical - indicates neck positioning"

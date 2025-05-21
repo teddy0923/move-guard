@@ -13,7 +13,7 @@ paths:
       annotated: "data/processed_videos/annotated/"
     metadata:
       default: "data/metadata/"
-      test_data: "tests_data.csv"  # Path to test data file relative to project root
+      test_data: "tests_data_pilot_for_features.csv"  # Path to test data file relative to project root
       video_segments:
         id_field: "Filename"         # Maps to "video_id" internally
         movement_field: "Movement"   # Additional metadata

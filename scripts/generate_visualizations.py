@@ -127,20 +127,7 @@ def draw_ankle_angle(frame, landmarks, view_angle, angle_value=None, color=(0, 2
             print(f"Landmark indices out of range. Landmarks shape: {landmarks.shape}")
         return frame
 
-    # Print visibility values for debugging
-    if debug:
-        visibility_values = []
-        if len(landmarks[heel_idx]) > 3:
-            visibility_values.append(("heel", landmarks[heel_idx][3]))
-        if len(landmarks[foot_idx]) > 3:
-            visibility_values.append(("foot", landmarks[foot_idx][3]))
-        if len(landmarks[ankle_idx]) > 3:
-            visibility_values.append(("ankle", landmarks[ankle_idx][3]))
-        if len(landmarks[knee_idx]) > 3:
-            visibility_values.append(("knee", landmarks[knee_idx][3]))
-        print(f"Landmark visibility values: {visibility_values}")
-
-    # Skip visibility checks during debugging to see what's happening
+    # Skip visibility checks during debugging
     skip_visibility_check = debug
 
     if not skip_visibility_check:
@@ -576,9 +563,22 @@ def draw_femoral_angle(frame, landmarks, view_angle, angle_value=None, color=(10
     # Draw the angle value
     if angle_value is not None:
         # Position text near the knee joint
-        text_pos = (knee_pos[0] + 60, knee_pos[1])  # Offset to the right of the knee
+        text_pos = (
+            int(knee_pos[0] + 60),  # Offset to the right of the knee
+            int(knee_pos[1]) - 10  # Slightly above the line
+        )
         text = f"{angle_value:.1f}°"
-        cv2.putText(frame, text, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2, cv2.LINE_AA)
+        
+        # Draw black background for better visibility
+        text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, thickness)
+        cv2.rectangle(frame,
+                    (text_pos[0] - 5, text_pos[1] - text_size[1] - 5),
+                    (text_pos[0] + text_size[0] + 5, text_pos[1] + 5),
+                    (0, 0, 0), -1)
+        
+        # Draw text
+        cv2.putText(frame, text, text_pos,
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, thickness, cv2.LINE_AA)
     else:
         try:
             # Calculate angle on the fly
@@ -598,13 +598,156 @@ def draw_femoral_angle(frame, landmarks, view_angle, angle_value=None, color=(10
                     print(f"Calculated femoral angle: {angle_deg:.1f}°")
 
                 text = f"{angle_deg:.1f}°"
-                text_pos = (knee_pos[0] + 60, knee_pos[1])  # Offset to the right of the knee
-                cv2.putText(frame, text, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2, cv2.LINE_AA)
+                text_pos = (
+                    int(knee_pos[0] + 60),  # Offset to the right of the knee
+                    int(knee_pos[1]) - 10  # Slightly above the line
+                )
+                text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, thickness)
+                cv2.rectangle(frame,
+                              (text_pos[0] - 5, text_pos[1] - text_size[1] - 5),
+                              (text_pos[0] + text_size[0] + 5, text_pos[1] + 5),
+                              (0, 0, 0), -1)
+
+                cv2.putText(frame, text, text_pos,
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, thickness, cv2.LINE_AA)
         except Exception as e:
             if debug:
                 print(f"Error calculating femoral angle: {str(e)}")
             logging.error(f"Error calculating femoral angle: {str(e)}")
 
+    return frame
+
+
+def draw_trunk_tibia_angle(frame, landmarks, view_angle, angle_value=None, color=(255, 200, 0), thickness=2, debug=False):
+    """
+    Draw trunk-tibia angle visualization
+    """
+    # Get frame dimensions
+    height, width = frame.shape[:2]
+    
+    if debug:
+        print(f"\nDraw trunk-tibia debug:")
+        print(f"View angle: {view_angle}")
+        print(f"Frame dimensions: {width}x{height}")
+        print(f"Angle value: {angle_value}")
+        print(f"Landmarks shape: {landmarks.shape if landmarks is not None else 'None'}")
+        
+    # Determine which side to use based on view_angle
+    if view_angle.lower() in ["sag_left", "sagittal left", "sagittal_left"]:  # Added more variations
+        ankle_idx = 27  # left_ankle
+        knee_idx = 25  # left_knee
+        hip_idx = 23   # left_hip
+        shoulder_idx = 11  # left_shoulder
+        if debug:
+            print(f"Using LEFT side landmarks: ankle={ankle_idx}, knee={knee_idx}, hip={hip_idx}, shoulder={shoulder_idx}")
+    else:  # Default to right side
+        ankle_idx = 28  # right_ankle
+        knee_idx = 26  # right_knee
+        hip_idx = 24   # right_hip
+        shoulder_idx = 12  # right_shoulder
+        if debug:
+            print(f"Using RIGHT side landmarks: ankle={ankle_idx}, knee={knee_idx}, hip={hip_idx}, shoulder={shoulder_idx}")
+
+    # Get landmark positions
+    ankle = landmarks[ankle_idx][:2]
+    knee = landmarks[knee_idx][:2]
+    hip = landmarks[hip_idx][:2]
+    shoulder = landmarks[shoulder_idx][:2]
+
+    if debug:
+        print(f"Raw landmarks (normalized 0-1):")
+        print(f"  Ankle ({ankle_idx}): {landmarks[ankle_idx]}")
+        print(f"  Knee ({knee_idx}): {landmarks[knee_idx]}")
+        print(f"  Hip ({hip_idx}): {landmarks[hip_idx]}")
+        print(f"  Shoulder ({shoulder_idx}): {landmarks[shoulder_idx]}")
+
+    # Convert normalized coordinates to pixel coordinates
+    ankle = (int(ankle[0] * width), int(ankle[1] * height))
+    knee = (int(knee[0] * width), int(knee[1] * height))
+    hip = (int(hip[0] * width), int(hip[1] * height))
+    shoulder = (int(shoulder[0] * width), int(shoulder[1] * height))
+
+    if debug:
+        print(f"Pixel coordinates:")
+        print(f"  Ankle: {ankle}")
+        print(f"  Knee: {knee}")
+        print(f"  Hip: {hip}")
+        print(f"  Shoulder: {shoulder}")
+
+    # Draw tibia line (ankle to knee)
+    cv2.line(frame, ankle, knee, color, thickness)
+    
+    # Draw trunk line (hip to shoulder)
+    cv2.line(frame, hip, shoulder, color, thickness)
+
+    # Calculate tibia vector and normalize
+    tibia_vector = np.array([knee[0] - ankle[0], knee[1] - ankle[1]], dtype=float)
+    tibia_length = np.linalg.norm(tibia_vector)
+    
+    if debug:
+        print(f"Tibia vector: {tibia_vector}")
+        print(f"Tibia length: {tibia_length}")
+    
+    if tibia_length > 0:
+        tibia_unit = tibia_vector / tibia_length
+        
+        # Calculate perpendicular vector (rotate 90 degrees counter-clockwise)
+        perp_vector = np.array([-tibia_unit[1], tibia_unit[0]])
+        
+        # Scale perpendicular vector
+        perp_end = (
+            int(knee[0] + perp_vector[0] * tibia_length * 1.5),
+            int(knee[1] + perp_vector[1] * tibia_length * 1.5)
+        )
+        
+        if debug:
+            print(f"Tibia unit vector: {tibia_unit}")
+            print(f"Perpendicular vector: {perp_vector}")
+            print(f"Drawing perpendicular line from knee {knee} to {perp_end}")
+        
+        # Draw perpendicular line (dashed)
+        draw_dashed_line(frame, knee, perp_end, color, thickness)
+
+        # Add angle text at the end of perpendicular line
+        if angle_value is not None:
+            # Position text at perp_end
+            text_pos = (
+                perp_end[0] + 10,  # Slightly to the right of end point
+                perp_end[1] - 10   # Slightly above end point
+            )
+            text = f"{angle_value:.1f}"
+            font_size = 0.5  # Smaller font
+            
+            # Get text size for circle radius
+            text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_size, thickness)
+            circle_radius = max(text_size[0], text_size[1]) // 2 + 1  # Add padding
+            
+            # Draw black circle background
+            cv2.circle(frame, text_pos, circle_radius, (0, 0, 0), -1)
+            
+            # Draw text
+            cv2.putText(frame, text, 
+                       (text_pos[0] - text_size[0]//2, text_pos[1] + text_size[1]//2),  # Center text in circle
+                       cv2.FONT_HERSHEY_SIMPLEX, font_size, color, thickness, cv2.LINE_AA)
+
+    return frame
+
+
+def draw_dashed_line(frame, pt1, pt2, color, thickness, gap=10):
+    """Draw a dashed line between two points"""
+    dist = ((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2) ** 0.5
+    pts = []
+    for i in np.arange(0, dist, gap):
+        r = i / dist
+        x = int((pt1[0] * (1 - r) + pt2[0] * r) + .5)
+        y = int((pt1[1] * (1 - r) + pt2[1] * r) + .5)
+        pts.append((x, y))
+
+    if pts:
+        for i in range(len(pts) - 1):
+            if i % 2 == 0:
+                cv2.line(frame, pts[i], pts[i + 1], color, thickness)
+    
     return frame
 
 
@@ -799,6 +942,8 @@ def main():
                         frame_angles['shoulder_flexion'] = float(row['shoulder_flexion'])
                     if 'femoral_angle' in angles_df.columns:
                         frame_angles['femoral_angle'] = float(row['femoral_angle'])
+                    if 'trunk_tibia_angle' in angles_df.columns:
+                        frame_angles['trunk_tibia_angle'] = float(row['trunk_tibia_angle'])
                     
                     angle_data[frame_idx] = frame_angles
                 
@@ -902,53 +1047,56 @@ def main():
             if not args.hide_landmarks:
                 frame = draw_landmarks(frame, frame_landmarks, body_connections)
 
+            # Get angle values for current frame (outside any view checks)
+            frame_angles = {}
+            angle_values = {
+                'ankle': None,
+                'knee': None,
+                'hip': None,
+                'shoulder': None,
+                'femoral': None,
+                'trunk_tibia': None
+            }
+
+            if angle_data and frame_idx in angle_data:
+                frame_angles = angle_data[frame_idx]
+                angle_values['ankle'] = frame_angles.get('ankle')
+                angle_values['knee'] = frame_angles.get('knee')
+                angle_values['hip'] = frame_angles.get('hip_flexion')
+                angle_values['shoulder'] = frame_angles.get('shoulder_flexion')
+                angle_values['femoral'] = frame_angles.get('femoral_angle')
+                angle_values['trunk_tibia'] = frame_angles.get('trunk_tibia_angle')
+
+                if args.debug and frame_idx % 50 == 0:
+                    print(f"Frame {frame_idx}:")
+                    print(f"  View angle: {view_angle}")
+                    print(f"  Frame angles: {frame_angles}")
+                    print(f"  Angle values: {angle_values}")
+                    print(f"  Trunk-tibia angle: {angle_values['trunk_tibia']}")
+
             # Draw angles for sagittal views
             if view_angle.lower() in ["sag_left", "sagittal left", "sagittal_left",
                                     "sag_right", "sagittal right", "sagittal_right"]:
-                # Get pre-calculated angle values if available
-                ankle_value = None
-                knee_value = None
-                hip_value = None
-                shoulder_value = None
-                femoral_value = None
-
-                if angle_data and frame_idx in angle_data:
-                    frame_angles = angle_data[frame_idx]
-                    ankle_value = frame_angles.get('ankle')
-                    knee_value = frame_angles.get('knee')
-                    hip_value = frame_angles.get('hip_flexion')
-                    shoulder_value = frame_angles.get('shoulder_flexion')
-                    femoral_value = frame_angles.get('femoral_angle')
-
-                    if args.debug and frame_idx % 50 == 0:
-                        print(f"Frame {frame_idx}:")
-                        print(f"  View angle: {view_angle}")
-                        print(f"  Frame angles: {frame_angles}")
-                        print(f"  Values: ankle={ankle_value}, knee={knee_value}, hip={hip_value}, shoulder={shoulder_value}, femoral={femoral_value}")
-
                 # Draw angles and their values
-                frame = draw_ankle_angle(frame, frame_landmarks, view_angle, ankle_value, debug=args.debug)
-                frame = draw_knee_angle(frame, frame_landmarks, view_angle, knee_value, debug=args.debug)
-                frame = draw_hip_flexion(frame, frame_landmarks, view_angle, hip_value, debug=args.debug)
-                frame = draw_shoulder_flexion(frame, frame_landmarks, view_angle, shoulder_value, debug=args.debug)
-                frame = draw_femoral_angle(frame, frame_landmarks, view_angle, femoral_value, debug=args.debug)
+                frame = draw_ankle_angle(frame, frame_landmarks, view_angle, angle_values['ankle'], debug=args.debug)
+                frame = draw_knee_angle(frame, frame_landmarks, view_angle, angle_values['knee'], debug=args.debug)
+                frame = draw_hip_flexion(frame, frame_landmarks, view_angle, angle_values['hip'], debug=args.debug)
+                frame = draw_shoulder_flexion(frame, frame_landmarks, view_angle, angle_values['shoulder'], debug=args.debug)
+                frame = draw_femoral_angle(frame, frame_landmarks, view_angle, angle_values['femoral'], debug=args.debug)
+                frame = draw_trunk_tibia_angle(frame, frame_landmarks, view_angle, angle_values['trunk_tibia'], debug=args.debug)
 
             # Add angle labels in top-left corner with black background
-            if angle_data and frame_idx in angle_data:
-                frame_angles = angle_data[frame_idx]
-                ankle_value = frame_angles.get('ankle')
-                knee_value = frame_angles.get('knee')
-                hip_value = frame_angles.get('hip_flexion')
-                shoulder_value = frame_angles.get('shoulder_flexion')
-                femoral_value = frame_angles.get('femoral_angle')
-
+            if any(v is not None for v in angle_values.values()):
+                if args.debug and frame_idx % 50 == 0:
+                    print(f"Drawing angle list. Values: {angle_values}")
                 y_offset = 40
                 angle_info = [
-                    ("Dorsiflexion", ankle_value, (255, 255, 255)),
-                    ("Knee Flexion", knee_value, (255, 165, 0)),
-                    ("Hip Flexion", hip_value, (0, 120, 255)),
-                    ("Shoulder Flexion", shoulder_value, (255, 0, 255)),
-                    ("Femoral-Horizontal", femoral_value, (100, 255, 100))
+                    ("Dorsiflexion", angle_values['ankle'], (255, 255, 255)),
+                    ("Knee Flexion", angle_values['knee'], (255, 165, 0)),
+                    ("Hip Flexion", angle_values['hip'], (0, 120, 255)),
+                    ("Shoulder Flexion", angle_values['shoulder'], (255, 0, 255)),
+                    ("Femoral-Horizontal", angle_values['femoral'], (100, 255, 100)),
+                    ("Trunk-Tibia", angle_values['trunk_tibia'], (255, 200, 0))  # Orange-yellow color
                 ]
 
                 for label, value, color in angle_info:

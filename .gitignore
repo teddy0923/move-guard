@@ -3,3 +3,4 @@ logs/
 #ignore data files
 data/raw
 data/processed_videos
+data/features
