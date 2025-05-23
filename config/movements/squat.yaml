@@ -77,7 +77,7 @@ features:
         moderate: [70, 100]
         good: [100, 130]
 
-    knee_flexion:
+    knee_angle:
       description: "Knee mobility - angle between hip, knee and ankle"
       calculation: "angle_between_vectors"
       points: ["hip", "knee", "ankle"]

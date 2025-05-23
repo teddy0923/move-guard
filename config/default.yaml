@@ -8,6 +8,7 @@ paths:
     raw: "data/raw/"
     landmarks: "data/landmarks/"
     features: "data/features/"
+    labeled_features: "data/labeled_features/"
     processed_videos:
       basic: "data/processed_videos/basic/"
       annotated: "data/processed_videos/annotated/"
